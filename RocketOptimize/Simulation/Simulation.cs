@@ -51,10 +51,15 @@ namespace RocketOptimize.Simulation
             }
             Vector3d heading = state.Velocity.Normalized();
 
+            const double CoefficientOfDrag = 0.3;
+            const double Radius = 3.66 / 2;
+            const double Area = Radius * Radius * Math.PI;
+            const double Mass = 500000;
+
             double velocitySquared = state.Velocity.LengthSquared;
             state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
             state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
-            state.Drag = -heading * Math.Min(1000.0, velocitySquared * state.Atmosphere.Density / 1000.0);
+            state.Drag = -heading * velocitySquared * CoefficientOfDrag * Area * state.Atmosphere.Density / (2.0 * Mass);
 
             return state.Acceleration = state.Gravity + state.Drag;
         }
@@ -75,13 +80,13 @@ namespace RocketOptimize.Simulation
             Vector3d vertical = state.Position.Normalized();
             Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
 
-            const double turnDelay = 120.0;
-            const double initialTurnDuration = 130.0;
-            const double turnDuration = 240.0;
-            const double thrustDuration = 493;
-            const double thrustCurve = 1100.0;
+            const double turnDelay = 60.0;
+            const double initialTurnDuration = 15.0;
+            const double turnDuration = 110.0;
+            const double thrustDuration = 333;
+            const double thrustCurve = 620.0;
             const double minThrust = 15.0;
-            const double maxThrust = 55;
+            const double maxThrust = 65;
 
             double angle = 10 * Math.Min(1.0, state.Time / initialTurnDuration) + 80.0 * Math.Min(1.0, Math.Max(0.0, state.Time - turnDelay) / turnDuration);
             double thrust = state.Time < thrustDuration ? minThrust + (maxThrust - minThrust) * (Math.Min(1.0, state.Time / thrustCurve)) : 0.0;

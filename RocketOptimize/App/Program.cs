@@ -90,19 +90,20 @@ namespace RocketOptimize.App
 
         public override void UpdateTick(float updateTime)
         {
-            if ((DateTime.UtcNow - start).TotalMilliseconds > 1000)
+            if ((DateTime.UtcNow - start).TotalMilliseconds > 10000)
             {
                 double timeSpent = Simulation.Tick(updateTime, Rate, MicroStepping);
 
                 State currentState = Simulation.CurrentState;
 
-                Title = string.Format("{0} - time: {3,0:F}s - altitude: {1,2:F} km - pressure: {2,2:F} kPa - velocity: {4,2:F} km/s - thrust: {5,2:F} m/s^2",
+                Title = string.Format("{0} - time: {3,0:F}s - altitude: {1,2:F} km - pressure: {2,2:F} kPa - velocity: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - dens: {6,2:F} kg/m^3",
                     Math.Round(1 / 60.0 / (timeSpent)),
                     (currentState.Position.Length - Constants.EarthRadius) / 1000.0,
                     currentState.Atmosphere.Pressure / 1000.0,
                     currentState.Time,
                     currentState.Velocity.Length / 1000.0,
-                    currentState.Thrust.Length
+                    currentState.Thrust.Length,
+                    currentState.Atmosphere.Density
                 );
             }
             CenterCameraOnTrajectory();
@@ -189,7 +190,7 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 20;
+                window.Rate = 5;
                 window.MicroStepping = 10;
                 window.Start(60.0);
             }
