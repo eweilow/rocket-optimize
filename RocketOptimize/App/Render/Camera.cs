@@ -1,5 +1,5 @@
-﻿using System;
-using OpenTK;
+﻿using OpenTK;
+using System;
 
 namespace RocketOptimize.App.Render
 {
@@ -9,12 +9,75 @@ namespace RocketOptimize.App.Render
         Ortographic
     }
 
+    public class SmoothOrthoCamera : Camera
+    {
+        public SmoothOrthoCamera() : base()
+        {
+            SetProjectionOrthographic(-1f, 1f);
+            SetPosition(Vector3.Zero);
+            SetLookat(-Vector3.UnitZ);
+        }
+
+        private float _centerX;
+        private float _centerY;
+        private float _size;
+        private float _targetCenterX;
+        private float _targetCenterY;
+        private float _targetSize;
+
+        public float Smoothing = 0.5f;
+
+        public SmoothOrthoCamera(float centerX, float centerY, int size)
+        {
+            _centerX = centerX;
+            _centerY = centerY;
+            _size = size;
+            _targetCenterX = centerX;
+            _targetCenterY = centerY;
+            _targetSize = size;
+        }
+
+        public void CenterOn(float minX, float maxX, float minY, float maxY, float scale, int minSize)
+        {
+            float width = maxX - minX;
+            float height = maxY - minY;
+
+            int size = Math.Max(minSize, Math.Max((int)(width * scale), (int)(height * scale)));
+
+            float centerX = minX + (width / 2);
+            float centerY = minY + (height / 2);
+
+            SetExtents(centerX, centerY, size);
+        }
+
+        public void SetExtents(float centerX, float centerY, int size)
+        {
+            _targetCenterX = centerX;
+            _targetCenterY = centerY;
+            _targetSize = size;
+        }
+
+        public void Update()
+        {
+            _centerX += (_targetCenterX - _centerX) * Smoothing;
+            _centerY += (_targetCenterY - _centerY) * Smoothing;
+            _size += (_targetSize - _size) * Smoothing;
+
+            SetProjectionOrthographic(-1f, 1f);
+            Resize((int)_size, (int)_size);
+            SetPosition(new OpenTK.Vector3() { X = _centerX, Y = _centerY, Z = 0 });
+            SetLookat(new OpenTK.Vector3() { X = _centerX, Y = _centerY, Z = -1 });
+        }
+    }
+
     public class Camera
     {
-        public ProjectionType ProjectionType { get; private set; }
+        protected bool hasChanged = false;
 
-        public int Width { get; private set; }
-        public int Height { get; private set; }
+        public ProjectionType ProjectionType { get; protected set; }
+
+        public int Width { get; protected set; }
+        public int Height { get; protected set; }
 
         public float FovRads
         {
@@ -35,8 +98,14 @@ namespace RocketOptimize.App.Render
         public Vector3 Position { get; private set; }
         public Vector3 LookAt { get; private set; }
 
-        private void Update()
+        public bool UpdateMatrices()
         {
+            if (hasChanged == false)
+            {
+                return false;
+            }
+            hasChanged = false;
+
             ViewMatrix = Matrix4.LookAt(Position, LookAt, Vector3.UnitY);
 
             switch (ProjectionType)
@@ -52,26 +121,26 @@ namespace RocketOptimize.App.Render
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-
+            return true;
         }
 
         public void Resize(int w, int h)
         {
             Width = w;
             Height = h;
-            Update();
+            hasChanged = true;
         }
 
         public void SetPosition(Vector3 position)
         {
             Position = position;
-            Update();
+            hasChanged = true;
         }
 
         public void SetLookat(Vector3 lookat)
         {
             LookAt = lookat;
-            Update();
+            hasChanged = true;
         }
 
         public void SetProjectionPerspective(float fov, float near, float far)
@@ -80,7 +149,7 @@ namespace RocketOptimize.App.Render
             Fov = fov;
             NearZ = near;
             FarZ = far;
-            Update();
+            hasChanged = true;
         }
 
         public void SetProjectionOrthographic(float near, float far)
@@ -88,7 +157,7 @@ namespace RocketOptimize.App.Render
             ProjectionType = ProjectionType.Ortographic;
             NearZ = near;
             FarZ = far;
-            Update();
+            hasChanged = true;
         }
     }
 }

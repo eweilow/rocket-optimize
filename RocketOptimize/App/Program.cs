@@ -6,7 +6,7 @@ using System.Numerics;
 
 namespace RocketOptimize.App
 {
-    class Program : Window
+    class Program : Window<SmoothOrthoCamera>
     {
         static State InitializeState(float v0, float theta)
         {
@@ -37,10 +37,32 @@ namespace RocketOptimize.App
         public int Rate = 1;
         public int MicroStepping = 1;
 
+        private void CenterCameraOnTrajectory()
+        {
+            float minX = float.MaxValue;
+            float maxX = float.MinValue;
+            float minY = float.MaxValue;
+            float maxY = float.MinValue;
+
+            foreach (var state in Simulation.States)
+            {
+                minX = Math.Min(minX, state.Position.X);
+                maxX = Math.Max(maxX, state.Position.X);
+                minY = Math.Min(minY, state.Position.Y);
+                maxY = Math.Max(maxY, state.Position.Y);
+            }
+
+            Camera.CenterOn(minX, maxX, minY, maxX, 2.5f, 1000);
+        }
+
+        public override SmoothOrthoCamera CreateCamera()
+        {
+            return new SmoothOrthoCamera(0f, 0f, 1000);
+        }
+
         public override void DidResize(int width, int height)
         {
-            Camera.Resize(5000, 5000);
-            Camera.SetProjectionOrthographic(-1f, 1f);
+            CenterCameraOnTrajectory();
         }
 
         public override void UpdateTick(float updateTime)
@@ -49,15 +71,12 @@ namespace RocketOptimize.App
             Title = string.Format("{0,2:F}", timeSpent * 1000);
 
             State currentState = Simulation.CurrentState;
-
-            //Camera.SetPosition(new OpenTK.Vector3() { X = currentState.Position.X, Y = currentState.Position.Y, Z = currentState.Position.Z });
-            //Camera.SetLookat(new OpenTK.Vector3() { X = currentState.Position.X, Y = currentState.Position.Y, Z = currentState.Position.Z - 1 });
+            CenterCameraOnTrajectory();
+            Camera.Update();
         }
 
         public override void RenderTick(float updateTime)
         {
-            // Console.WriteLine("{0} ({1,2:F} {2,2:F}) {3,2:F} ({4,2:F})", 1f / updateTime, currentState.Position.X, currentState.Position.Y, currentState.Velocity.X, currentState.Velocity.Y);
-
             GL.LineWidth(4f);
             GL.Begin(PrimitiveType.Lines);
             GL.Color3(0f, 1f, 0f);
