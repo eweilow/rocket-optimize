@@ -1,7 +1,7 @@
 ﻿using RocketOptimize.Simulation.Integrators;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Numerics;
+using OpenTK;
 
 namespace RocketOptimize.Simulation
 {
@@ -32,13 +32,13 @@ namespace RocketOptimize.Simulation
             _currentState = initialState;
         }
 
-        private Vector3 ComputeCurrentAcceleration(State state)
+        private Vector3d ComputeCurrentAcceleration(State state)
         {
-            if (state.Position.Y < -0.1f)
+            if (state.Position.Y < -0.1)
             {
-                return -state.Velocity * 10f;
+                return -state.Velocity * 10;
             }
-            return Vector3.UnitY * (-9.81f) - 0.001f * state.Velocity * state.Velocity.Length();
+            return Vector3d.UnitY * (-9.81) - 0.001 * state.Velocity * state.Velocity.Length;
         }
 
         public double Tick(float updateTime, int rate, int microSteps)
@@ -50,7 +50,7 @@ namespace RocketOptimize.Simulation
                 for (int j = 0; j < microSteps; j++)
                 {
                     _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
-                    if ((_lastState.Position - _currentState.Position).LengthSquared() > 10f)
+                    if ((_lastState.Position - _currentState.Position).LengthSquared > 10.0)
                     {
                         States.Add(_currentState);
                         _lastState = _currentState;

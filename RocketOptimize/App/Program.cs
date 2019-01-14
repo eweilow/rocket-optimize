@@ -1,48 +1,55 @@
-﻿using OpenTK.Graphics.OpenGL;
+﻿using OpenTK;
+using OpenTK.Graphics.OpenGL;
 using RocketOptimize.App.Render;
 using RocketOptimize.Simulation;
 using System;
-using System.Numerics;
 
 namespace RocketOptimize.App
 {
     class Program : Window<SmoothOrthoCamera>
     {
-        static State InitializeState(float v0, float theta)
+        static State InitializeState(double v0, double theta)
         {
             return new State()
             {
-                Position = new Vector3()
+                Position = new Vector3d()
                 {
                     X = 0,
-                    Y = 0,
+                    Y = Constants.EarthRadius,
                     Z = 0
                 },
-                Velocity = new Vector3()
+                Velocity = new Vector3d()
                 {
-                    X = v0 * (float)Math.Cos(theta),
-                    Y = v0 * (float)Math.Sin(theta),
+                    X = v0 * Constants.Scaling * (float)Math.Cos(theta),
+                    Y = v0 * Constants.Scaling * (float)Math.Sin(theta),
                     Z = 0
                 }
             };
         }
 
-        readonly AscentSimulation Simulation = new AscentSimulation(
-            new Input[]{
-                new Input(90f, 1f)
-            },
-            InitializeState(555f, 1f)
-        );
+        private State _initialState = InitializeState(555.0, 1.0);
+
+        readonly AscentSimulation Simulation;
+
+        public Program() : base()
+        {
+            Simulation = new AscentSimulation(
+                new Input[]{
+                    new Input(90f, 1f)
+                },
+                _initialState
+            );
+        }
 
         public int Rate = 1;
         public int MicroStepping = 1;
 
         private void CenterCameraOnTrajectory()
         {
-            float minX = float.MaxValue;
-            float maxX = float.MinValue;
-            float minY = float.MaxValue;
-            float maxY = float.MinValue;
+            double minX = double.MaxValue;
+            double maxX = double.MinValue;
+            double minY = double.MaxValue;
+            double maxY = double.MinValue;
 
             foreach (var state in Simulation.States)
             {
@@ -52,12 +59,12 @@ namespace RocketOptimize.App
                 maxY = Math.Max(maxY, state.Position.Y);
             }
 
-            Camera.CenterOn(minX, maxX, minY, maxX, 2.5f, 1000);
+            Camera.CenterOn(minX, maxX, minY, maxY, 2.5, 10000);
         }
 
         public override SmoothOrthoCamera CreateCamera()
         {
-            return new SmoothOrthoCamera(0f, 0f, 1000);
+            return new SmoothOrthoCamera(_initialState.Position.X, _initialState.Position.Y, 1000);
         }
 
         public override void DidResize(int width, int height)
@@ -80,25 +87,25 @@ namespace RocketOptimize.App
             GL.LineWidth(4f);
             GL.Begin(PrimitiveType.Lines);
             GL.Color3(0f, 1f, 0f);
-            GL.Vertex3(-5000f, 0f, 0f);
-            GL.Vertex3(5000f, 0f, 0f);
+            GL.Vertex3(-5000.0, Constants.EarthRadius, 0.0);
+            GL.Vertex3(5000.0, Constants.EarthRadius, 0.0);
             GL.End();
 
             GL.LineWidth(1f);
             GL.Begin(PrimitiveType.Lines);
-            for (float f = 1f; f < 100f; f += 1f)
+            for (double f = 1; f < 1000; f += 1)
             {
-                GL.Color3(0.1f, 0.1f, 0.1f);
-                GL.Vertex3(-5000f, f * 1000f, 0f);
-                GL.Vertex3(5000f, f * 1000f, 0f);
+                GL.Color3(0.1, 0.1, 0.1);
+                GL.Vertex3(-5000, Constants.EarthRadius + f * 1000.0, 0);
+                GL.Vertex3(5000, Constants.EarthRadius + f * 1000, 0);
             }
             GL.End();
 
             GL.Begin(PrimitiveType.LineStrip);
             foreach (var state in Simulation.States)
             {
-                GL.Color3(1f, 1f, 1f);
-                GL.Vertex3(state.Position.X, state.Position.Y, state.Position.Z);
+                GL.Color3(1.0, 1.0, 1.0);
+                GL.Vertex3(state.Position);
             }
             GL.End();
         }
@@ -108,7 +115,7 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 10;
+                window.Rate = 5;
                 window.MicroStepping = 100;
                 window.Start(60.0);
             }

@@ -1,4 +1,5 @@
 ﻿using OpenTK;
+using RocketOptimize.Simulation;
 using System;
 
 namespace RocketOptimize.App.Render
@@ -13,21 +14,21 @@ namespace RocketOptimize.App.Render
     {
         public SmoothOrthoCamera() : base()
         {
-            SetProjectionOrthographic(-1f, 1f);
-            SetPosition(Vector3.Zero);
-            SetLookat(-Vector3.UnitZ);
+            SetProjectionOrthographic(-1.0, 1.0);
+            SetPosition(Vector3d.Zero);
+            SetLookat(-Vector3d.UnitZ);
         }
 
-        private float _centerX;
-        private float _centerY;
-        private float _size;
-        private float _targetCenterX;
-        private float _targetCenterY;
-        private float _targetSize;
+        private double _centerX;
+        private double _centerY;
+        private double _size;
+        private double _targetCenterX;
+        private double _targetCenterY;
+        private double _targetSize;
 
-        public float Smoothing = 0.5f;
+        public double Smoothing = 0.5;
 
-        public SmoothOrthoCamera(float centerX, float centerY, int size)
+        public SmoothOrthoCamera(double centerX, double centerY, int size)
         {
             _centerX = centerX;
             _centerY = centerY;
@@ -37,20 +38,21 @@ namespace RocketOptimize.App.Render
             _targetSize = size;
         }
 
-        public void CenterOn(float minX, float maxX, float minY, float maxY, float scale, int minSize)
+        public void CenterOn(double minX, double maxX, double minY, double maxY, double scale, int minSize)
         {
-            float width = maxX - minX;
-            float height = maxY - minY;
+            Console.WriteLine("{0} {1} {2} {3}", minX, maxX, minY, maxY);
+            double width = maxX - minX;
+            double height = maxY - minY;
 
             int size = Math.Max(minSize, Math.Max((int)(width * scale), (int)(height * scale)));
 
-            float centerX = minX + (width / 2);
-            float centerY = minY + (height / 2);
+            double centerX = minX + (width / 2);
+            double centerY = minY + (height / 2);
 
             SetExtents(centerX, centerY, size);
         }
 
-        public void SetExtents(float centerX, float centerY, int size)
+        public void SetExtents(double centerX, double centerY, int size)
         {
             _targetCenterX = centerX;
             _targetCenterY = centerY;
@@ -65,8 +67,8 @@ namespace RocketOptimize.App.Render
 
             SetProjectionOrthographic(-1f, 1f);
             Resize((int)_size, (int)_size);
-            SetPosition(new OpenTK.Vector3() { X = _centerX, Y = _centerY, Z = 0 });
-            SetLookat(new OpenTK.Vector3() { X = _centerX, Y = _centerY, Z = -1 });
+            SetPosition(new Vector3d() { X = _centerX, Y = _centerY, Z = 0 });
+            SetLookat(new Vector3d() { X = _centerX, Y = _centerY, Z = -1 });
         }
     }
 
@@ -79,24 +81,24 @@ namespace RocketOptimize.App.Render
         public int Width { get; protected set; }
         public int Height { get; protected set; }
 
-        public float FovRads
+        public double FovRads
         {
             get
             {
-                return (Fov * (float)Math.PI) / 180f;
+                return (Fov * Math.PI) / 180.0;
             }
         }
 
-        public float Fov { get; private set; }
+        public double Fov { get; private set; }
 
-        public float NearZ { get; private set; }
-        public float FarZ { get; private set; }
+        public double NearZ { get; private set; }
+        public double FarZ { get; private set; }
 
-        public Matrix4 ProjectionMatrix { get; private set; }
-        public Matrix4 ViewMatrix { get; private set; }
+        public Matrix4d ProjectionMatrix { get; private set; }
+        public Matrix4d ViewMatrix { get; private set; }
 
-        public Vector3 Position { get; private set; }
-        public Vector3 LookAt { get; private set; }
+        public Vector3d Position { get; private set; }
+        public Vector3d LookAt { get; private set; }
 
         public bool UpdateMatrices()
         {
@@ -106,17 +108,17 @@ namespace RocketOptimize.App.Render
             }
             hasChanged = false;
 
-            ViewMatrix = Matrix4.LookAt(Position, LookAt, Vector3.UnitY);
+            ViewMatrix = Matrix4d.LookAt(Position, LookAt, Vector3d.UnitY);
 
             switch (ProjectionType)
             {
                 case ProjectionType.Perspective:
-                    ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(FovRads, Width / (float)Height, NearZ, FarZ);
+                    ProjectionMatrix = Matrix4d.CreatePerspectiveFieldOfView(FovRads, Width / (float)Height, NearZ, FarZ);
                     break;
                 case ProjectionType.Ortographic:
                     var halfWidth = Width / 2f;
                     var halfHeight = Height / 2f;
-                    ProjectionMatrix = Matrix4.CreateOrthographicOffCenter(-halfWidth, halfWidth, -halfHeight, halfHeight, NearZ, FarZ);
+                    ProjectionMatrix = Matrix4d.CreateOrthographicOffCenter(-halfWidth, halfWidth, -halfHeight, halfHeight, NearZ, FarZ);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -131,19 +133,19 @@ namespace RocketOptimize.App.Render
             hasChanged = true;
         }
 
-        public void SetPosition(Vector3 position)
+        public void SetPosition(Vector3d position)
         {
             Position = position;
             hasChanged = true;
         }
 
-        public void SetLookat(Vector3 lookat)
+        public void SetLookat(Vector3d lookat)
         {
             LookAt = lookat;
             hasChanged = true;
         }
 
-        public void SetProjectionPerspective(float fov, float near, float far)
+        public void SetProjectionPerspective(double fov, double near, double far)
         {
             ProjectionType = ProjectionType.Perspective;
             Fov = fov;
@@ -152,7 +154,7 @@ namespace RocketOptimize.App.Render
             hasChanged = true;
         }
 
-        public void SetProjectionOrthographic(float near, float far)
+        public void SetProjectionOrthographic(double near, double far)
         {
             ProjectionType = ProjectionType.Ortographic;
             NearZ = near;

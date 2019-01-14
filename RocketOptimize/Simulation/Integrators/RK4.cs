@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Numerics;
+using OpenTK;
 
 namespace RocketOptimize.Simulation.Integrators
 {
@@ -9,7 +9,7 @@ namespace RocketOptimize.Simulation.Integrators
         {
         }
 
-        public void Integrate(float timeStep, ref State currentState, out State newState, Func<State, Vector3> computeCurrentForce)
+        public void Integrate(float timeStep, ref State currentState, out State newState, Func<State, Vector3d> computeCurrentForce)
         {
             var a1 = computeCurrentForce(currentState) * timeStep;
             var b1 = currentState.Velocity * timeStep;

@@ -4,10 +4,10 @@ namespace RocketOptimize.Simulation
 {
     public struct Input
     {
-        readonly float AngleFromVertical;
-        readonly float ThrustFactor;
+        readonly double AngleFromVertical;
+        readonly double ThrustFactor;
 
-        public Input(float angleFromVertical, float thrustFactor)
+        public Input(double angleFromVertical, double thrustFactor)
         {
             AngleFromVertical = angleFromVertical;
             ThrustFactor = thrustFactor;
