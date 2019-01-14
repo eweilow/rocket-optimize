@@ -40,7 +40,6 @@ namespace RocketOptimize.App.Render
 
         public void CenterOn(double minX, double maxX, double minY, double maxY, double scale, int minSize)
         {
-            Console.WriteLine("{0} {1} {2} {3}", minX, maxX, minY, maxY);
             double width = maxX - minX;
             double height = maxY - minY;
 

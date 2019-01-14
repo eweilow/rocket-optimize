@@ -34,7 +34,7 @@ namespace RocketOptimize.Simulation
 
         private Vector3d ComputeCurrentAcceleration(State state)
         {
-            if (state.Position.Y < -0.1)
+            if (state.Position.Y < Constants.EarthRadius - 0.1)
             {
                 return -state.Velocity * 10;
             }
