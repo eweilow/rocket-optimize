@@ -1,10 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL;
 using RocketOptimize.App.Render;
 using RocketOptimize.Simulation;
-using RocketOptimize.Simulation.Integrators;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Numerics;
 
 namespace RocketOptimize.App
@@ -30,10 +27,12 @@ namespace RocketOptimize.App
             };
         }
 
-        State currentState = InitializeState(555f, 0.45f);
-        RK4 rk4 = new RK4();
-
-        List<State> states = new List<State>();
+        readonly AscentSimulation Simulation = new AscentSimulation(
+            new Input[]{
+                new Input(90f, 1f)
+            },
+            InitializeState(555f, 1f)
+        );
 
         public int Rate = 1;
         public int MicroStepping = 1;
@@ -46,31 +45,13 @@ namespace RocketOptimize.App
 
         public override void UpdateTick(float updateTime)
         {
-            var watch = new Stopwatch();
-            watch.Start();
-            for (int i = 0; i < Rate; i++)
-            {
-                for (int j = 0; j < MicroStepping; j++)
-                {
-                    rk4.Integrate(updateTime / MicroStepping, ref currentState, out currentState, (State state) =>
-                    {
-                        if (state.Position.Y < -0.1f)
-                        {
-                            return -state.Velocity * 10f;
-                        }
-                        return Vector3.UnitY * (-9.81f) - 0.001f * state.Velocity * state.Velocity.Length();
-                    });
-                }
-                states.Add(currentState);
-            }
-            watch.Stop();
-            double ticks = watch.ElapsedTicks;
-            double seconds = ticks / Stopwatch.Frequency;
+            double timeSpent = Simulation.Tick(updateTime, Rate, MicroStepping);
+            Title = string.Format("{0,2:F}", timeSpent * 1000);
 
-            Title = string.Format("{0,2:F}", seconds * 1000);
+            State currentState = Simulation.CurrentState;
 
-            Camera.SetPosition(new OpenTK.Vector3() { X = currentState.Position.X, Y = currentState.Position.Y, Z = currentState.Position.Z });
-            Camera.SetLookat(new OpenTK.Vector3() { X = currentState.Position.X, Y = currentState.Position.Y, Z = currentState.Position.Z - 1 });
+            //Camera.SetPosition(new OpenTK.Vector3() { X = currentState.Position.X, Y = currentState.Position.Y, Z = currentState.Position.Z });
+            //Camera.SetLookat(new OpenTK.Vector3() { X = currentState.Position.X, Y = currentState.Position.Y, Z = currentState.Position.Z - 1 });
         }
 
         public override void RenderTick(float updateTime)
@@ -89,13 +70,13 @@ namespace RocketOptimize.App
             for (float f = 1f; f < 100f; f += 1f)
             {
                 GL.Color3(0.1f, 0.1f, 0.1f);
-                GL.Vertex3(-5000f, f*1000f, 0f);
-                GL.Vertex3(5000f, f*1000f, 0f);
+                GL.Vertex3(-5000f, f * 1000f, 0f);
+                GL.Vertex3(5000f, f * 1000f, 0f);
             }
             GL.End();
 
             GL.Begin(PrimitiveType.LineStrip);
-            foreach (var state in states)
+            foreach (var state in Simulation.States)
             {
                 GL.Color3(1f, 1f, 1f);
                 GL.Vertex3(state.Position.X, state.Position.Y, state.Position.Z);
@@ -108,7 +89,7 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 1;
+                window.Rate = 10;
                 window.MicroStepping = 100;
                 window.Start(60.0);
             }

@@ -58,12 +58,6 @@
     <None Include="App.config" />
     <None Include="OpenTK.dll.config" />
     <None Include="packages.config" />
-    <None Include="Shaders\fragment.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Shaders\vertex.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Geometry\Geometry.csproj">
