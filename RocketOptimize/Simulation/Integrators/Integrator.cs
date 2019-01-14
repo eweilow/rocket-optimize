@@ -3,8 +3,10 @@ using OpenTK;
 
 namespace RocketOptimize.Simulation.Integrators
 {
+    public delegate Vector3d AccelerationCalculator(ref State state);
+
     public interface IIntegrator
     {
-        void Integrate(float timeStep, ref State currentState, out State newState, Func<State, Vector3d> computeCurrentForce);
+        void Integrate(float timeStep, ref State currentState, out State newState, AccelerationCalculator calculateAcceleration);
     }
 }

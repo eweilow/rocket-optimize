@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using OpenTK;
+using System;
 
 namespace RocketOptimize.Simulation
 {
@@ -32,13 +33,32 @@ namespace RocketOptimize.Simulation
             _currentState = initialState;
         }
 
-        private Vector3d ComputeCurrentAcceleration(State state)
+        private Vector3d ComputeCurrentAcceleration(ref State state)
         {
-            if (state.Position.Length < Constants.EarthRadius - 0.1)
+            double radius = state.Position.Length;
+            if (radius < Constants.EarthRadius - 0.1)
             {
                 return -state.Velocity * 10;
             }
-            return Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero) - 0.001 * state.Velocity * state.Velocity.Length;
+            Vector3d heading = state.Velocity.Normalized();
+
+            double velocitySquared = state.Velocity.LengthSquared;
+
+            state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
+            state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
+            state.Drag = -heading * velocitySquared * state.Atmosphere.Density / 1000.0;
+
+
+            Vector3d vertical = state.Position.Normalized();
+            Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
+
+            double angle = 90.0 * Math.Min(1.0, state.Time / 350.0);
+            double radian = angle / 180.0 * Math.PI;
+
+            Vector3d thrustDirection = Math.Cos(radian) * vertical + Math.Sin(radian) * horizontal;
+            state.Thrust = thrustDirection * 25.0;
+
+            return state.Acceleration = state.Gravity + state.Drag + state.Thrust;
         }
 
         public double Tick(float updateTime, int rate, int microSteps)
@@ -50,18 +70,21 @@ namespace RocketOptimize.Simulation
                 for (int j = 0; j < microSteps; j++)
                 {
                     _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
-                    if ((_lastState.Position - _currentState.Position).LengthSquared > 10.0)
-                    {
-                        _currentState.Acceleration = ComputeCurrentAcceleration(_currentState);
-                        States.Add(_currentState);
-                        _lastState = _currentState;
-                    }
                 }
-
+                if ((_lastState.Position - _currentState.Position).LengthSquared > 100.0)
+                {
+                    ComputeCurrentAcceleration(ref _currentState);
+                    States.Add(_currentState);
+                    _lastState = _currentState;
+                }
             }
             watch.Stop();
             double ticks = watch.ElapsedTicks;
             double seconds = ticks / Stopwatch.Frequency;
+
+            ComputeCurrentAcceleration(ref _currentState);
+            States.Add(_currentState);
+            _lastState = _currentState;
 
             return seconds;
         }

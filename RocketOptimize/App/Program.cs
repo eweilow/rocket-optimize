@@ -27,7 +27,7 @@ namespace RocketOptimize.App
             };
         }
 
-        private State _initialState = InitializeState(555.0, 1.0);
+        private State _initialState = InitializeState(55.0, Math.PI/2.01);
 
         readonly AscentSimulation Simulation;
 
@@ -59,7 +59,7 @@ namespace RocketOptimize.App
                 maxY = Math.Max(maxY, state.Position.Y);
             }
 
-            Camera.CenterOn(minX, maxX, minY, maxY, 2.5, 10000);
+            Camera.CenterOn(minX, maxX, minY, maxY, 2.5, 1000);
         }
 
         public override SmoothOrthoCamera CreateCamera()
@@ -75,11 +75,18 @@ namespace RocketOptimize.App
         public override void UpdateTick(float updateTime)
         {
             double timeSpent = Simulation.Tick(updateTime, Rate, MicroStepping);
-            Title = string.Format("{0,2:F}", timeSpent * 1000);
 
             State currentState = Simulation.CurrentState;
             CenterCameraOnTrajectory();
             Camera.Update();
+
+            Title = string.Format("{0} - time: {3,0:F}s - altitude: {1,2:F} km - pressure: {2,2:F} kPa - velocity: {4,2:F} km/s", 
+                Math.Round(1 / 60.0 / (timeSpent)),
+                (currentState.Position.Length - Constants.EarthRadius) / 1000.0,
+                currentState.Atmosphere.Pressure/1000.0,
+                currentState.Time,
+                currentState.Velocity.Length / 1000.0
+            );
         }
 
         private void DrawCircle(double radius, float R, float G, float B, float lineWidth = 1f)
@@ -97,7 +104,7 @@ namespace RocketOptimize.App
         public override void RenderTick(float updateTime)
         {
 
-            for(int exponent = 1; exponent < 2; exponent++)
+            for(int exponent = 0; exponent < 2; exponent++)
             {
                 double baseNumber = Math.Pow(10.0, exponent);
                 for (double f = 1; f < 10; f += 1)
@@ -107,7 +114,7 @@ namespace RocketOptimize.App
                 }
             }
 
-            DrawCircle(Constants.EarthRadius, 0f, 1f, 0f, 8f);
+            DrawCircle(Constants.EarthRadius, 0f, 1f, 0f, 4f);
 
             GL.LineWidth(1f);
             GL.Begin(PrimitiveType.LineStrip);
@@ -126,15 +133,31 @@ namespace RocketOptimize.App
             GL.Vertex3(last.Position);
             GL.Vertex3(last.Position + last.Acceleration.Normalized() * Camera.Size * 0.2);
 
+            GL.Color3(1.0, 1.0, 0.0);
+            GL.Vertex3(last.Position);
+            GL.Vertex3(last.Position + last.Gravity.Normalized() * Camera.Size * 0.12);
+
+            GL.Color3(0.0, 1.0, 1.0);
+            GL.Vertex3(last.Position);
+            GL.Vertex3(last.Position + last.Drag.Normalized() * Camera.Size * 0.12);
+
+            GL.Color3(1.0, 0.0, 1.0);
+            GL.Vertex3(last.Position);
+            GL.Vertex3(last.Position + last.Thrust.Normalized() * Camera.Size * 0.12);
+
             GL.Color3(0.0, 0.0, 1.0);
             GL.Vertex3(last.Position);
-            GL.Vertex3(last.Position + last.Velocity.Normalized() * Camera.Size * 0.2);
+            GL.Vertex3(last.Position + last.Velocity.Normalized() * Camera.Size * 0.05);
             GL.End();
         }
 
 
         static void Main(string[] args)
         {
+            Console.WriteLine(Models.AtmosphereLerp.Get(0.0).Pressure);
+            Console.WriteLine(Models.AtmosphereLerp.Get(10000.0).Pressure);
+            Console.WriteLine(Models.AtmosphereLerp.Get(20000.0).Pressure);
+            Console.WriteLine(Models.AtmosphereLerp.Get(30000.0).Pressure);
             using (var window = new Program())
             {
                 window.Rate = 10;
