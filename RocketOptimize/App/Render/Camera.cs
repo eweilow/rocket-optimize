@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Numerics;
+using OpenTK;
 
 namespace RocketOptimize.App.Render
 {
@@ -29,25 +29,25 @@ namespace RocketOptimize.App.Render
         public float NearZ { get; private set; }
         public float FarZ { get; private set; }
 
-        public Matrix4x4 ProjectionMatrix { get; private set; }
-        public Matrix4x4 ViewMatrix { get; private set; }
+        public Matrix4 ProjectionMatrix { get; private set; }
+        public Matrix4 ViewMatrix { get; private set; }
 
         public Vector3 Position { get; private set; }
         public Vector3 LookAt { get; private set; }
 
         private void Update()
         {
-            ViewMatrix = Matrix4x4.CreateLookAt(Position, LookAt, Vector3.UnitY);
+            ViewMatrix = Matrix4.LookAt(Position, LookAt, Vector3.UnitY);
 
             switch (ProjectionType)
             {
                 case ProjectionType.Perspective:
-                    ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(FovRads, Width / (float)Height, NearZ, FarZ);
+                    ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(FovRads, Width / (float)Height, NearZ, FarZ);
                     break;
                 case ProjectionType.Ortographic:
                     var halfWidth = Width / 2f;
                     var halfHeight = Height / 2f;
-                    ProjectionMatrix = Matrix4x4.CreateOrthographicOffCenter(-halfWidth, halfWidth, -halfHeight, halfHeight, NearZ, FarZ);
+                    ProjectionMatrix = Matrix4.CreateOrthographicOffCenter(-halfWidth, halfWidth, -halfHeight, halfHeight, NearZ, FarZ);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
