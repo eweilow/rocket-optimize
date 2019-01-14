@@ -26,6 +26,14 @@ namespace RocketOptimize.App.Render
         private double _targetCenterY;
         private double _targetSize;
 
+        public double Size
+        {
+            get
+            {
+                return _size;
+            }
+        }
+
         public double Smoothing = 0.5;
 
         public SmoothOrthoCamera(double centerX, double centerY, int size)

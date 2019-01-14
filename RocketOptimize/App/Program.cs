@@ -87,7 +87,7 @@ namespace RocketOptimize.App
             GL.LineWidth(lineWidth);
             GL.Color3(R, G, B);
             GL.Begin(PrimitiveType.LineLoop);
-            for (var theta = 0.0; theta < Math.PI*2.0; theta += 0.01)
+            for (var theta = 0.0; theta < Math.PI*2.0; theta += 0.05)
             {
                 GL.Vertex3(Math.Sin(theta)*radius, Math.Cos(theta)*radius, 0);
             }
@@ -96,12 +96,18 @@ namespace RocketOptimize.App
 
         public override void RenderTick(float updateTime)
         {
-            DrawCircle(Constants.EarthRadius, 0f, 1f, 0f, 8f);
 
-            for (double f = 1; f < 100; f += 1)
+            for(int exponent = 1; exponent < 2; exponent++)
             {
-                DrawCircle(Constants.EarthRadius + f * 1000.0, 0.1f, 0.1f, 0.1f);
+                double baseNumber = Math.Pow(10.0, exponent);
+                for (double f = 1; f < 10; f += 1)
+                {
+                    double number = f * baseNumber;
+                    DrawCircle(Constants.EarthRadius + number * 1000.0, 0.1f, 0.1f, 0.1f);
+                }
             }
+
+            DrawCircle(Constants.EarthRadius, 0f, 1f, 0f, 8f);
 
             GL.LineWidth(1f);
             GL.Begin(PrimitiveType.LineStrip);
@@ -111,6 +117,19 @@ namespace RocketOptimize.App
                 GL.Vertex3(state.Position);
             }
             GL.End();
+
+            GL.LineWidth(1f);
+            GL.Begin(PrimitiveType.Lines);
+
+            var last = Simulation.States[Simulation.States.Count - 1];
+            GL.Color3(1.0, 0.0, 0.0);
+            GL.Vertex3(last.Position);
+            GL.Vertex3(last.Position + last.Acceleration.Normalized() * Camera.Size * 0.2);
+
+            GL.Color3(0.0, 0.0, 1.0);
+            GL.Vertex3(last.Position);
+            GL.Vertex3(last.Position + last.Velocity.Normalized() * Camera.Size * 0.2);
+            GL.End();
         }
 
 
@@ -118,8 +137,8 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 15;
-                window.MicroStepping = 100;
+                window.Rate = 10;
+                window.MicroStepping = 25;
                 window.Start(60.0);
             }
         }

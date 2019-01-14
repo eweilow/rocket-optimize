@@ -34,11 +34,11 @@ namespace RocketOptimize.Simulation
 
         private Vector3d ComputeCurrentAcceleration(State state)
         {
-            if (state.Position.Y < Constants.EarthRadius - 0.1)
+            if (state.Position.Length < Constants.EarthRadius - 0.1)
             {
                 return -state.Velocity * 10;
             }
-            return Vector3d.UnitY * (-9.81) - 0.001 * state.Velocity * state.Velocity.Length;
+            return Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero) - 0.001 * state.Velocity * state.Velocity.Length;
         }
 
         public double Tick(float updateTime, int rate, int microSteps)
@@ -52,6 +52,7 @@ namespace RocketOptimize.Simulation
                     _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
                     if ((_lastState.Position - _currentState.Position).LengthSquared > 10.0)
                     {
+                        _currentState.Acceleration = ComputeCurrentAcceleration(_currentState);
                         States.Add(_currentState);
                         _lastState = _currentState;
                     }

@@ -7,5 +7,6 @@ namespace RocketOptimize.Simulation
         public float Time;
         public Vector3d Position;
         public Vector3d Velocity;
+        public Vector3d Acceleration;
     }
 }
