@@ -21,26 +21,19 @@ namespace RocketOptimize.App.Render
 
         private double _centerX;
         private double _centerY;
-        private double _size;
         private double _targetCenterX;
         private double _targetCenterY;
         private double _targetSize;
 
-        public double Size
-        {
-            get
-            {
-                return _size;
-            }
-        }
+        public double Size { get; private set; }
 
-        public double Smoothing = 0.5;
+        public double Smoothing = 0.12;
 
         public SmoothOrthoCamera(double centerX, double centerY, int size)
         {
             _centerX = centerX;
             _centerY = centerY;
-            _size = size;
+            Size = size;
             _targetCenterX = centerX;
             _targetCenterY = centerY;
             _targetSize = size;
@@ -70,10 +63,10 @@ namespace RocketOptimize.App.Render
         {
             _centerX += (_targetCenterX - _centerX) * Smoothing;
             _centerY += (_targetCenterY - _centerY) * Smoothing;
-            _size += (_targetSize - _size) * Smoothing;
+            Size += (_targetSize - Size) * Smoothing;
 
             SetProjectionOrthographic(-1f, 1f);
-            Resize((int)_size, (int)_size);
+            Resize((int)Size, (int)Size);
             SetPosition(new Vector3d() { X = _centerX, Y = _centerY, Z = 0 });
             SetLookat(new Vector3d() { X = _centerX, Y = _centerY, Z = -1 });
         }

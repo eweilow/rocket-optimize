@@ -67,12 +67,17 @@ namespace RocketOptimize.Simulation
             {
                 return Points[0].Item2;
             }
-            else if (value > To)
+            else if (value > To || double.IsNaN(value) || double.IsInfinity(value))
             {
-                return Points[1].Item2;
+                return Points[Points.Length-1].Item2;
             }
             double offset = value - From;
             int lowIndex = (int)Math.Floor(offset / Step);
+
+            if(lowIndex + 1 >= Points.Length)
+            {
+                return Points[Points.Length - 1].Item2;
+            }
 
             double factor = (offset - lowIndex * Step) / Step;
 
@@ -104,16 +109,16 @@ namespace RocketOptimize.Simulation
             return Constants.EarthRadius * (geometricAltitude * 1000.0) / (Constants.EarthRadius + (geometricAltitude * 1000.0)) / 1000.0;
         }
 
-        public readonly static Lerp<Atmosphere> AtmosphereLerp = Lerp<Atmosphere>.LinSpace(0.0, 1000000.0, 100, StandardAtmosphere, Atmosphere.Interpolate);
+        public readonly static Lerp<Atmosphere> AtmosphereLerp = Lerp<Atmosphere>.LinSpace(0.0, 1000000.0, 1000, StandardAtmosphere, Atmosphere.Interpolate);
 
         public static Atmosphere StandardAtmosphere(double geometricAltitude)
         {
             var z = geometricAltitude / 1000.0; // geometric altitude
             var h = GeopotentialAltitude(z); // geopotential altitude
 
-            if (h < 0.0)
+            if (h < 0.1)
             {
-                h = 0.0;
+                h = 0.1;
             }
 
             if (z < 0.0)
@@ -121,9 +126,9 @@ namespace RocketOptimize.Simulation
                 z = 0.0;
             }
 
-            if (z > 1000.0)
+            if (z > 995.0)
             {
-                z = 1000.0;
+                z = 995.0;
             }
 
             double temperature;

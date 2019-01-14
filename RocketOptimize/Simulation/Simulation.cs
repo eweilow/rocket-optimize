@@ -1,8 +1,8 @@
-﻿using RocketOptimize.Simulation.Integrators;
+﻿using OpenTK;
+using RocketOptimize.Simulation.Integrators;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using OpenTK;
-using System;
 
 namespace RocketOptimize.Simulation
 {
@@ -10,6 +10,10 @@ namespace RocketOptimize.Simulation
     {
         public readonly Input[] ControlInput;
         public readonly List<State> States = new List<State>();
+        public readonly State[] Lookahead = new State[600];
+        public readonly double LookaheadTimestep = 1;
+        public readonly int LookaheadRate = 10;
+
         private State _currentState;
         private State _lastState;
         private IIntegrator _integrator = new RK4();
@@ -31,6 +35,33 @@ namespace RocketOptimize.Simulation
             States.Add(initialState);
             _lastState = initialState;
             _currentState = initialState;
+
+            for(var i = 0; i < Lookahead.Length; i++)
+            {
+                Lookahead[i] = initialState;
+            }
+        }
+
+        private Vector3d ComputeCurrentNaturalAcceleration(ref State state, bool clamp)
+        {
+            double radius = state.Position.Length;
+            if (clamp && radius < Constants.EarthRadius - 0.1)
+            {
+                return -state.Velocity;
+            }
+            Vector3d heading = state.Velocity.Normalized();
+
+            double velocitySquared = state.Velocity.LengthSquared;
+            state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
+            state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
+            state.Drag = -heading * Math.Min(1000.0, velocitySquared * state.Atmosphere.Density / 1000.0);
+
+            return state.Acceleration = state.Gravity + state.Drag;
+        }
+
+        private Vector3d ComputeCurrentNaturalAcceleration(ref State state)
+        {
+            return ComputeCurrentNaturalAcceleration(ref state, true);
         }
 
         private Vector3d ComputeCurrentAcceleration(ref State state)
@@ -38,27 +69,28 @@ namespace RocketOptimize.Simulation
             double radius = state.Position.Length;
             if (radius < Constants.EarthRadius - 0.1)
             {
-                return -state.Velocity * 10;
+                return -state.Velocity;
             }
-            Vector3d heading = state.Velocity.Normalized();
-
-            double velocitySquared = state.Velocity.LengthSquared;
-
-            state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
-            state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
-            state.Drag = -heading * velocitySquared * state.Atmosphere.Density / 1000.0;
-
 
             Vector3d vertical = state.Position.Normalized();
             Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
 
-            double angle = 90.0 * Math.Min(1.0, state.Time / 350.0);
+            const double turnDelay = 120.0;
+            const double initialTurnDuration = 130.0;
+            const double turnDuration = 240.0;
+            const double thrustDuration = 493;
+            const double thrustCurve = 1100.0;
+            const double minThrust = 15.0;
+            const double maxThrust = 55;
+
+            double angle = 10 * Math.Min(1.0, state.Time / initialTurnDuration) + 80.0 * Math.Min(1.0, Math.Max(0.0, state.Time - turnDelay) / turnDuration);
+            double thrust = state.Time < thrustDuration ? minThrust + (maxThrust - minThrust) * (Math.Min(1.0, state.Time / thrustCurve)) : 0.0;
             double radian = angle / 180.0 * Math.PI;
 
             Vector3d thrustDirection = Math.Cos(radian) * vertical + Math.Sin(radian) * horizontal;
-            state.Thrust = thrustDirection * 25.0;
+            state.Thrust = thrustDirection * thrust;
 
-            return state.Acceleration = state.Gravity + state.Drag + state.Thrust;
+            return state.Acceleration = ComputeCurrentNaturalAcceleration(ref state, false) + state.Thrust;
         }
 
         public double Tick(float updateTime, int rate, int microSteps)
@@ -70,6 +102,12 @@ namespace RocketOptimize.Simulation
                 for (int j = 0; j < microSteps; j++)
                 {
                     _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
+                    double radius = _currentState.Position.Length;
+                    if (radius < Constants.EarthRadius - 0.1)
+                    {
+                        _currentState.Position = _currentState.Position.Normalized() * (Constants.EarthRadius - 0.1);
+                        _currentState.Velocity = Vector3d.Zero;
+                    }
                 }
                 if ((_lastState.Position - _currentState.Position).LengthSquared > 100.0)
                 {
@@ -78,14 +116,37 @@ namespace RocketOptimize.Simulation
                     _lastState = _currentState;
                 }
             }
-            watch.Stop();
-            double ticks = watch.ElapsedTicks;
-            double seconds = ticks / Stopwatch.Frequency;
 
             ComputeCurrentAcceleration(ref _currentState);
             States.Add(_currentState);
             _lastState = _currentState;
 
+            Lookahead[0] = _currentState;
+            bool exited = false;
+            for (var i = 1; i < Lookahead.Length; i++)
+            {
+                Lookahead[i] = Lookahead[i - 1];
+                if(exited)
+                {
+                    continue;
+                }
+                for (var j = 0; j < LookaheadRate; j++)
+                {
+                    _integrator.Integrate(LookaheadTimestep, ref Lookahead[i], out Lookahead[i], ComputeCurrentNaturalAcceleration);
+                    double radius = Lookahead[i].Position.Length;
+                    if (radius < Constants.EarthRadius + 10000.0)
+                    {
+                        Lookahead[i].Position = Lookahead[i].Position.Normalized() * (Constants.EarthRadius - 0.1);
+                        Lookahead[i].Velocity = Vector3d.Zero;
+                        exited = true;
+                        break;
+                    }
+                }
+            }
+
+            watch.Stop();
+            double ticks = watch.ElapsedTicks;
+            double seconds = ticks / Stopwatch.Frequency;
             return seconds;
         }
     }

@@ -9,25 +9,25 @@ namespace RocketOptimize.Simulation.Integrators
         {
         }
 
-        public void Integrate(float timeStep, ref State currentState, out State newState, AccelerationCalculator calculateAcceleration)
+        public void Integrate(double timeStep, ref State currentState, out State newState, AccelerationCalculator calculateAcceleration)
         {
             var a1 = calculateAcceleration(ref currentState) * timeStep;
             var b1 = currentState.Velocity * timeStep;
 
             var state2 = new State()
             {
-                Time = currentState.Time + timeStep / 2f,
-                Position = currentState.Position + b1 / 2f,
-                Velocity = currentState.Velocity + a1 / 2f
+                Time = currentState.Time + timeStep / 2.0,
+                Position = currentState.Position + b1 / 2.0,
+                Velocity = currentState.Velocity + a1 / 2.0
             };
             var a2 = calculateAcceleration(ref state2) * timeStep;
             var b2 = state2.Velocity * timeStep;
 
             var state3 = new State()
             {
-                Time = currentState.Time + timeStep / 2f,
-                Position = currentState.Position + b2 / 2f,
-                Velocity = currentState.Velocity + a2 / 2f
+                Time = currentState.Time + timeStep / 2.0,
+                Position = currentState.Position + b2 / 2.0,
+                Velocity = currentState.Velocity + a2 / 2.0
             };
             var a3 = calculateAcceleration(ref state3) * timeStep;
             var b3 = state3.Velocity * timeStep;
@@ -44,8 +44,8 @@ namespace RocketOptimize.Simulation.Integrators
             newState = new State()
             {
                 Time = currentState.Time + timeStep,
-                Position = currentState.Position + 1f / 6f * b1 + 1f / 3f * b2 + 1f / 3f * b3 + 1f / 6f * b4,
-                Velocity = currentState.Velocity + 1f / 6f * a1 + 1f / 3f * a2 + 1f / 3f * a3 + 1f / 6f * a4,
+                Position = currentState.Position + 1.0 / 6.0 * b1 + 1.0 / 3.0 * b2 + 1.0 / 3.0 * b3 + 1.0 / 6.0 * b4,
+                Velocity = currentState.Velocity + 1.0 / 6.0 * a1 + 1.0 / 3.0 * a2 + 1.0 / 3.0 * a3 + 1.0 / 6.0 * a4,
                 Acceleration = currentState.Acceleration,
                 Gravity = currentState.Gravity,
                 Drag = currentState.Drag,

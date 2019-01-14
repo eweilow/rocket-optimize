@@ -8,7 +8,7 @@ namespace RocketOptimize.App.Render
     {
         protected T Camera;
 
-        public Window(int width = 800, int height = 600, string title = "Rocket Optimize") : base(width, height)
+        public Window(int width = 1000, int height = 1000, string title = "Rocket Optimize") : base(width, height)
         {
             Title = title;
             VSync = VSyncMode.On;
