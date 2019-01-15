@@ -120,7 +120,7 @@ namespace RocketOptimize.App
                 maxY = Math.Max(maxY, state.Y);
             }
 #endif
-            Console.WriteLine("{0,2:F} {1,2:F} {2,2:F} {3,2:F}", minX, maxX, minY, maxY);
+            //Console.WriteLine("{0,2:F} {1,2:F} {2,2:F} {3,2:F}", minX, maxX, minY, maxY);
             Camera.CenterOn(minX, maxX, minY, maxY, 1.8, 10000);
         }
 
@@ -145,14 +145,16 @@ namespace RocketOptimize.App
 
                 State currentState = Simulation.CurrentState;
 
-                Title = string.Format("{0} - time: {3,0:F}s - altitude: {1,2:F} km - pressure: {2,2:F} kPa - velocity: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - dens: {6,2:F} kg/m^3",
+                Title = string.Format("{0} - time: {3,0:F}s - altitude: {1,2:F} km - pressure: {2,2:F} kPa - velocity: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - dens: {6,2:F} kg/m^3 - grav: {7,2:F} m/s - drag: {8,2:F} m/s",
                     Math.Round(1 / 60.0 / (timeSpent)),
                     (currentState.Position.Length - Constants.EarthRadius) / 1000.0,
                     currentState.Atmosphere.Pressure / 1000.0,
                     currentState.Time,
                     currentState.Velocity.Length / 1000.0,
                     currentState.Thrust.Length,
-                    currentState.Atmosphere.Density
+                    currentState.Atmosphere.Density,
+                    currentState.LossesToGravity,
+                    currentState.LossesToDrag
                 );
             }
             CenterCameraOnTrajectory();
@@ -252,7 +254,7 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 1;
+                window.Rate = 5;
                 window.MicroStepping = 100;
                 window.Start(60.0);
             }
