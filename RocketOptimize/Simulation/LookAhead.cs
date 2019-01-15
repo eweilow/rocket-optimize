@@ -13,10 +13,64 @@ namespace RocketOptimize.Simulation
         public double SemiLatusRectum;
         public double Theta;
         public double ArgumentOfPeriapsis;
+
+        public LookAheadState(int length)
+        {
+            FuturePositions = new Vector3d[length];
+            Apoapsis = 0;
+            Periapsis = 0;
+            SemiMajorAxis = 0;
+            SemiMinorAxis = 0;
+            SemiLatusRectum = 0;
+            Theta = 0;
+            ArgumentOfPeriapsis = 0;
+        }
     }
 
     public static class LookAhead
     {
+        public static bool Intersect(Vector3d[] vectors, int currentLast, out Vector3d intersection)
+        {
+            if(currentLast < 1)
+            {
+                intersection = vectors[0];
+                return false;
+            }
+
+            Vector3d d = (vectors[currentLast] - vectors[currentLast - 1]);
+            if(d.LengthSquared < 1e-5)
+            {
+                intersection = vectors[currentLast];
+                return false;
+            }
+            d.Normalize();
+
+            Vector3d m = vectors[currentLast];
+
+            double b = Vector3d.Dot(m, d);
+            double c = m.LengthSquared - Constants.EarthRadius * Constants.EarthRadius;
+
+            if(c > 0 && b > 0)
+            {
+                intersection = vectors[currentLast];
+                return false;
+            }
+
+            double discriminant = b * b - c;
+            if(discriminant < 0)
+            {
+                intersection = vectors[currentLast];
+                return false;
+            }
+
+            double t = -b - Math.Sqrt(discriminant);
+            if(t < 0)
+            {
+                return Intersect(vectors, currentLast - 1, out intersection);
+            }
+            intersection = vectors[currentLast] + t * d;
+            return true;
+        }
 
         static bool SampleOrbit(ref Vector3d[] placeInto, ref Matrix4d rotationMatrix, double semiLatusRectum, double eccentricity, double offsetAngle, double angle, int offset, int steps)
         {
@@ -32,6 +86,7 @@ namespace RocketOptimize.Simulation
 
                 if (currentRadius < Constants.EarthRadius)
                 {
+                    Intersect(placeInto, i + offset, out placeInto[i + offset]);
                     for (int j = offset + i + 1; j < placeInto.Length; j++)
                     {
                         placeInto[j] = placeInto[i + offset];
@@ -42,7 +97,7 @@ namespace RocketOptimize.Simulation
             return true;
         }
 
-        public static LookAheadState CalculateOrbit(State state)
+        public static void CalculateOrbit(ref LookAheadState lookAheadState, State state)
         {
             var mu = Constants.EarthGravitationalConstant;
 
@@ -89,29 +144,22 @@ namespace RocketOptimize.Simulation
             var rotationMatrix = Matrix4d.CreateRotationZ(argumentOfPeriapsis);
 
 
-            const int points = 15000;
-            const int highAccuracyPoints = 10000;
-            const double highAccuracyAngle = Math.PI / 16;
-            var futurePositions = new Vector3d[points];
+            int highAccuracyPoints = lookAheadState.FuturePositions.Length / 2;
+            double highAccuracyAngle = Math.PI / 20;
 
-			if(SampleOrbit(ref futurePositions, ref rotationMatrix, semiLatusRectum, eccentricity, thetaFromPeriapsis, highAccuracyAngle, 0, highAccuracyPoints))
+			if(SampleOrbit(ref lookAheadState.FuturePositions, ref rotationMatrix, semiLatusRectum, eccentricity, thetaFromPeriapsis, highAccuracyAngle, 0, highAccuracyPoints))
             {
-                SampleOrbit(ref futurePositions, ref rotationMatrix, semiLatusRectum, eccentricity, thetaFromPeriapsis - highAccuracyAngle, Math.PI*2 - highAccuracyAngle, highAccuracyPoints, points - highAccuracyPoints);
+                SampleOrbit(ref lookAheadState.FuturePositions, ref rotationMatrix, semiLatusRectum, eccentricity, thetaFromPeriapsis - highAccuracyAngle, Math.PI*2 - highAccuracyAngle, highAccuracyPoints, lookAheadState.FuturePositions.Length - highAccuracyPoints);
             }
             //double approximatePerimeter = Math.PI * (3 * (semiMajorAxis + semiMinorAxis) - Math.Sqrt((3*semiMajorAxis + semiMinorAxis) * (semiMajorAxis + 3*semiMinorAxis)));
-            
 
-            return new LookAheadState()
-            {
-                FuturePositions = futurePositions,
-                Apoapsis = apoapsis - Constants.EarthRadius,
-                Periapsis = periapsis - Constants.EarthRadius,
-                SemiMajorAxis = semiMajorAxis,
-                SemiMinorAxis = semiMinorAxis,
-                SemiLatusRectum = semiLatusRectum,
-                ArgumentOfPeriapsis = argumentOfPeriapsis,
-                Theta = thetaFromPeriapsis
-            };
+            lookAheadState.Apoapsis = apoapsis - Constants.EarthRadius;
+            lookAheadState.Periapsis = periapsis - Constants.EarthRadius;
+            lookAheadState.SemiMajorAxis = semiMajorAxis;
+            lookAheadState.SemiMinorAxis = semiMinorAxis;
+            lookAheadState.SemiLatusRectum = semiLatusRectum;
+            lookAheadState.ArgumentOfPeriapsis = argumentOfPeriapsis;
+            lookAheadState.Theta = thetaFromPeriapsis;
 
             //Title = string.Format("e{0,2:F}, {1,2:F} km {2,2:F} km, r {3,2:F}, v {4,2:F} {5,2:F} {6,2:F} {7,2:F}, a{8,2:F} b{9,2:F}", e, (apoapsis - Constants.EarthRadius)/1000, (periapsis - Constants.EarthRadius) / 1000, (radiusVector.Length - Constants.EarthRadius) /1000, velocityVector.Length / 1000, theta2, actualRotation, offset, (a - Constants.EarthRadius)/1000, (b - Constants.EarthRadius)/1000);
             /*

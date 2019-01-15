@@ -1,4 +1,6 @@
-﻿using OpenTK;
+﻿#define FAST_LOOKAHEAD
+
+using OpenTK;
 using RocketOptimize.Simulation.Integrators;
 using System;
 using System.Collections.Generic;
@@ -10,9 +12,14 @@ namespace RocketOptimize.Simulation
     {
         public readonly Input[] ControlInput;
         public readonly List<State> States = new List<State>();
-        public readonly State[] Lookahead = new State[600];
-        public readonly double LookaheadTimestep = 5;
-        public readonly int LookaheadRate = 10;
+
+#if FAST_LOOKAHEAD
+        public LookAheadState LookAheadState = new LookAheadState(15000);
+#else
+        public LookAheadState LookAheadState = new LookAheadState(450);
+        public double LookAheadTime = 500.0; // Approximately slightly more than 1 ISS orbit duration
+        public int LookAheadMicroSteps = 1; // Microsteps per saved step
+#endif
 
         private State _currentState;
         private State _lastState;
@@ -36,9 +43,9 @@ namespace RocketOptimize.Simulation
             _lastState = initialState;
             _currentState = initialState;
 
-            for(var i = 0; i < Lookahead.Length; i++)
+            for (var i = 0; i < LookAheadState.FuturePositions.Length; i++)
             {
-                Lookahead[i] = initialState;
+                LookAheadState.FuturePositions[i] = initialState.Position;
             }
         }
 
@@ -126,28 +133,47 @@ namespace RocketOptimize.Simulation
             States.Add(_currentState);
             _lastState = _currentState;
 
-            Lookahead[0] = _currentState;
-            bool exited = false;
-            for (var i = 1; i < Lookahead.Length; i++)
+#if FAST_LOOKAHEAD
+            LookAhead.CalculateOrbit(ref LookAheadState, _currentState);
+#else
+            if (_currentState.Atmosphere.Pressure < 1000.0)
             {
-                Lookahead[i] = Lookahead[i - 1];
-                if(exited)
+                LookAhead.CalculateOrbit(ref LookAheadState, _currentState);
+            }
+            else
+            {
+
+                var positions = LookAheadState.FuturePositions;
+                var timestep = LookAheadTime / (LookAheadMicroSteps * positions.Length);
+                bool exited = false;
+                var lookAheadCurrentState = _currentState;
+                positions[0] = _currentState.Position;
+                for (var i = 1; i < positions.Length; i++)
                 {
-                    continue;
-                }
-                for (var j = 0; j < LookaheadRate; j++)
-                {
-                    _integrator.Integrate(LookaheadTimestep, ref Lookahead[i], out Lookahead[i], ComputeCurrentNaturalAcceleration);
-                    double radius = Lookahead[i].Position.Length;
-                    if (radius < Constants.EarthRadius + 10000.0)
+                    positions[i] = positions[i - 1];
+                    if (exited)
                     {
-                        Lookahead[i].Position = Lookahead[i].Position.Normalized() * (Constants.EarthRadius - 0.1);
-                        Lookahead[i].Velocity = Vector3d.Zero;
-                        exited = true;
-                        break;
+                        continue;
+                    }
+                    for (var j = 0; j < LookAheadMicroSteps; j++)
+                    {
+                        _integrator.Integrate(timestep, ref lookAheadCurrentState, out lookAheadCurrentState, ComputeCurrentNaturalAcceleration);
+                        double radius = lookAheadCurrentState.Position.Length;
+                        if (radius < Constants.EarthRadius)
+                        {
+                            positions[i] = lookAheadCurrentState.Position;
+                            LookAhead.Intersect(positions, i, out positions[i]);
+                            exited = true;
+                            break;
+                        }
+                    }
+                    if(!exited)
+                    {
+                        positions[i] = lookAheadCurrentState.Position;
                     }
                 }
             }
+#endif
 
             watch.Stop();
             double ticks = watch.ElapsedTicks;

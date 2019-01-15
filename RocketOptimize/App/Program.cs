@@ -97,6 +97,10 @@ namespace RocketOptimize.App
 
             foreach (var state in Simulation.States)
             {
+                if(double.IsNaN(state.Position.X) || double.IsNaN(state.Position.Y))
+                {
+                    continue;
+                }
                 minX = Math.Min(minX, state.Position.X);
                 maxX = Math.Max(maxX, state.Position.X);
                 minY = Math.Min(minY, state.Position.Y);
@@ -104,22 +108,26 @@ namespace RocketOptimize.App
             }
 
 #if USE_LOOKAHEAD_FOR_SCALING
-            foreach (var state in Simulation.Lookahead)
+            foreach (var state in Simulation.LookAheadState.FuturePositions)
             {
-                minX = Math.Min(minX, state.Position.X);
-                maxX = Math.Max(maxX, state.Position.X);
-                minY = Math.Min(minY, state.Position.Y);
-                maxY = Math.Max(maxY, state.Position.Y);
+                if (double.IsNaN(state.X) || double.IsNaN(state.Y))
+                {
+                    continue;
+                }
+                minX = Math.Min(minX, state.X);
+                maxX = Math.Max(maxX, state.X);
+                minY = Math.Min(minY, state.Y);
+                maxY = Math.Max(maxY, state.Y);
             }
 #endif
-
-            //Camera.CenterOn(minX, maxX, minY, maxY, 2.5, 12000000);
-            Camera.CenterOn(minX, maxX, minY, maxY, 1.5, 10000);
+            Console.WriteLine("{0,2:F} {1,2:F} {2,2:F} {3,2:F}", minX, maxX, minY, maxY);
+            Camera.CenterOn(minX, maxX, minY, maxY, 1.8, 10000);
         }
 
         public override SmoothOrthoCamera CreateCamera()
         {
-            return new SmoothOrthoCamera(_initialState.Position.X, _initialState.Position.Y, 1000);
+            Console.WriteLine(_initialState.Position);
+            return new SmoothOrthoCamera(_initialState.Position.X, _initialState.Position.Y, 10000);
         }
 
         public override void DidResize(int width, int height)
@@ -131,7 +139,7 @@ namespace RocketOptimize.App
 
         public override void UpdateTick(float updateTime)
         {
-            if ((DateTime.UtcNow - start).TotalMilliseconds > 0)
+            if ((DateTime.UtcNow - start).TotalMilliseconds > 500)
             {
                 double timeSpent = Simulation.Tick(updateTime, Rate, MicroStepping);
 
@@ -156,7 +164,7 @@ namespace RocketOptimize.App
             GL.LineWidth(lineWidth);
             GL.Color3(R, G, B);
             GL.Begin(PrimitiveType.LineLoop);
-            for (var theta = 0.0; theta < Math.PI * 2.0; theta += 0.05)
+            for (var theta = 0.0; theta < Math.PI * 2.0; theta += 0.02)
             {
                 GL.Vertex3(Math.Sin(theta) * radius, Math.Cos(theta) * radius, 0);
             }
@@ -178,28 +186,18 @@ namespace RocketOptimize.App
             DrawCircle(Constants.EarthRadius, 0f, 1f, 0f, 4f);
 
             var last = Simulation.States[Simulation.States.Count - 1];
-            if (last.Position.Length > Constants.EarthRadius + 10000)
-            {
-                var lookAheadState = LookAhead.CalculateOrbit(last);
+            //if (last.Position.Length > Constants.EarthRadius + 10000)
+            //{
+                var positions = Simulation.LookAheadState.FuturePositions;
                 GL.LineWidth(2f);
                 GL.Begin(PrimitiveType.LineStrip);
-                for (int i = 0; i < lookAheadState.FuturePositions.Length; i++)
+                for (int i = 0; i < positions.Length; i++)
                 {
-                    GL.Color3(1.0 - 0.5 * i / lookAheadState.FuturePositions.Length, 0.0, 0.0);
-
-                    GL.Vertex3(lookAheadState.FuturePositions[i]);
+                    GL.Color3(1.0 - 0.5 * i / positions.Length, 0.0, 0.0);
+                    GL.Vertex3(positions[i]);
                 }
                 GL.End();
-
-                GL.LineWidth(1f);
-                GL.Begin(PrimitiveType.LineStrip);
-                foreach (var state in Simulation.Lookahead)
-                {
-                    GL.Color3(0.5, 0.5, 0.5);
-                    GL.Vertex3(state.Position);
-                }
-                GL.End();
-            }
+            //}
 
             GL.LineWidth(1f);
             GL.Begin(PrimitiveType.LineStrip);
@@ -209,7 +207,6 @@ namespace RocketOptimize.App
                 GL.Vertex3(state.Position);
             }
             GL.End();
-
 
             /*if (last.Position.Length > Constants.EarthRadius + 10000)
             {
@@ -255,8 +252,8 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 15;
-                window.MicroStepping = 10;
+                window.Rate = 1;
+                window.MicroStepping = 100;
                 window.Start(60.0);
             }
         }
