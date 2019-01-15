@@ -11,7 +11,7 @@ namespace RocketOptimize.Simulation
         public readonly Input[] ControlInput;
         public readonly List<State> States = new List<State>();
         public readonly State[] Lookahead = new State[600];
-        public readonly double LookaheadTimestep = 1;
+        public readonly double LookaheadTimestep = 5;
         public readonly int LookaheadRate = 10;
 
         private State _currentState;

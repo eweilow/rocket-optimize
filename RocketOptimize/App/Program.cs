@@ -1,9 +1,12 @@
-﻿using OpenTK;
+﻿//#define ORBIT_DEBUG
+#define USE_LOOKAHEAD_FOR_SCALING
+
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using RocketOptimize.App.Render;
 using RocketOptimize.Simulation;
 using System;
-using System.Diagnostics;
+
 
 namespace RocketOptimize.App
 {
@@ -26,6 +29,39 @@ namespace RocketOptimize.App
                     Z = 0
                 }
             };
+#if ORBIT_DEBUG
+            return new State()
+            {
+                Position = new Vector3d()
+                {
+                    X = 5000,
+                    Y = Constants.EarthRadius + 15000,
+                    Z = 0
+                },
+                Velocity = new Vector3d()
+                {
+                    X = 500,
+                    Y = 2500,
+                    Z = 0
+                }
+            };
+#else
+            return new State()
+            {
+                Position = new Vector3d()
+                {
+                    X = 0,
+                    Y = Constants.EarthRadius,
+                    Z = 0
+                },
+                Velocity = new Vector3d()
+                {
+                    X = v0 * Constants.Scaling * (float)Math.Cos(theta),
+                    Y = v0 * Constants.Scaling * (float)Math.Sin(theta),
+                    Z = 0
+                }
+            };
+#endif
         }
 
         private State _initialState = InitializeState(55.0, Math.PI / 2.01);
@@ -47,14 +83,17 @@ namespace RocketOptimize.App
 
         private void CenterCameraOnTrajectory()
         {
+#if !ORBIT_DEBUG
             double minX = double.MaxValue;
             double maxX = double.MinValue;
             double minY = double.MaxValue;
             double maxY = double.MinValue;
-            //double minX = -Constants.EarthRadius;
-            //double maxX = Constants.EarthRadius;
-            //double minY = -Constants.EarthRadius;
-            //double maxY = Constants.EarthRadius;
+#else
+            double minX = -Constants.EarthRadius;
+            double maxX = Constants.EarthRadius;
+            double minY = -Constants.EarthRadius;
+            double maxY = Constants.EarthRadius;
+#endif
 
             foreach (var state in Simulation.States)
             {
@@ -64,6 +103,7 @@ namespace RocketOptimize.App
                 maxY = Math.Max(maxY, state.Position.Y);
             }
 
+#if USE_LOOKAHEAD_FOR_SCALING
             foreach (var state in Simulation.Lookahead)
             {
                 minX = Math.Min(minX, state.Position.X);
@@ -71,6 +111,7 @@ namespace RocketOptimize.App
                 minY = Math.Min(minY, state.Position.Y);
                 maxY = Math.Max(maxY, state.Position.Y);
             }
+#endif
 
             //Camera.CenterOn(minX, maxX, minY, maxY, 2.5, 12000000);
             Camera.CenterOn(minX, maxX, minY, maxY, 1.5, 10000);
@@ -90,7 +131,7 @@ namespace RocketOptimize.App
 
         public override void UpdateTick(float updateTime)
         {
-            if ((DateTime.UtcNow - start).TotalMilliseconds > 10000)
+            if ((DateTime.UtcNow - start).TotalMilliseconds > 0)
             {
                 double timeSpent = Simulation.Tick(updateTime, Rate, MicroStepping);
 
@@ -124,7 +165,6 @@ namespace RocketOptimize.App
 
         public override void RenderTick(float updateTime)
         {
-
             for (int exponent = 0; exponent < 3; exponent++)
             {
                 double baseNumber = Math.Pow(10.0, exponent);
@@ -137,19 +177,20 @@ namespace RocketOptimize.App
 
             DrawCircle(Constants.EarthRadius, 0f, 1f, 0f, 4f);
 
-            GL.LineWidth(1f);
-            GL.Begin(PrimitiveType.LineStrip);
-            foreach (var state in Simulation.States)
-            {
-                GL.Color3(1.0, 1.0, 1.0);
-                GL.Vertex3(state.Position);
-            }
-            GL.End();
-
             var last = Simulation.States[Simulation.States.Count - 1];
-
-            if(last.Position.Length > Constants.EarthRadius + 10000)
+            if (last.Position.Length > Constants.EarthRadius + 10000)
             {
+                var lookAheadState = LookAhead.CalculateOrbit(last);
+                GL.LineWidth(2f);
+                GL.Begin(PrimitiveType.LineStrip);
+                for (int i = 0; i < lookAheadState.FuturePositions.Length; i++)
+                {
+                    GL.Color3(1.0 - 0.5 * i / lookAheadState.FuturePositions.Length, 0.0, 0.0);
+
+                    GL.Vertex3(lookAheadState.FuturePositions[i]);
+                }
+                GL.End();
+
                 GL.LineWidth(1f);
                 GL.Begin(PrimitiveType.LineStrip);
                 foreach (var state in Simulation.Lookahead)
@@ -159,6 +200,30 @@ namespace RocketOptimize.App
                 }
                 GL.End();
             }
+
+            GL.LineWidth(1f);
+            GL.Begin(PrimitiveType.LineStrip);
+            foreach (var state in Simulation.States)
+            {
+                GL.Color3(1.0, 1.0, 1.0);
+                GL.Vertex3(state.Position);
+            }
+            GL.End();
+
+
+            /*if (last.Position.Length > Constants.EarthRadius + 10000)
+            {
+                GL.LineWidth(1f);
+                GL.Begin(PrimitiveType.LineStrip);
+                foreach (var state in Simulation.Lookahead)
+                {
+                    GL.Color3(0.5, 0.5, 0.5);
+                    GL.Vertex3(state.Position);
+                }
+                GL.End();
+            }*/
+
+
 
             /*GL.LineWidth(1f);
             GL.Begin(PrimitiveType.Lines);
@@ -190,7 +255,7 @@ namespace RocketOptimize.App
         {
             using (var window = new Program())
             {
-                window.Rate = 5;
+                window.Rate = 15;
                 window.MicroStepping = 10;
                 window.Start(60.0);
             }
