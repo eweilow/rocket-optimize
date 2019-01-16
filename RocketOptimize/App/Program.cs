@@ -1,9 +1,6 @@
 ﻿#define FORCE_DEBUG
 #define USE_LOOKAHEAD_FOR_SCALING
 
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
-using RocketOptimize.App.Render;
 using RocketOptimize.Simulation;
 using System;
 
