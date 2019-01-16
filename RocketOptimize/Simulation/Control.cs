@@ -4,6 +4,7 @@ namespace RocketOptimize.Simulation
 {
     public struct AscentSimulationControl
     {
+        public double Score;
         public double InitialTurnDuration;
         public double TurnDelay;
         public double TurnDuration;

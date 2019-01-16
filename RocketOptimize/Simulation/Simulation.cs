@@ -109,7 +109,16 @@ namespace RocketOptimize.Simulation
             return state.Acceleration = ComputeCurrentNaturalAcceleration(ref state, false) + state.Thrust;
         }
 
-        public void Tick(float updateTime, int rate, int microSteps)
+        public void FastTick(double updateTime, int microSteps)
+        {
+            for (int j = 0; j < microSteps; j++)
+            {
+                _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
+            }
+            LookAhead.CalculateOrbit(ref LookAheadState, _currentState);
+        }
+
+        public void Tick(double updateTime, int rate, int microSteps)
         {
             for (int i = 0; i < rate; i++)
             {

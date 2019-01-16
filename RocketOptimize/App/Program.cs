@@ -11,6 +11,13 @@ namespace RocketOptimize.App
     {
         static void Main(string[] args)
         {
+            var goal = new AscentSimulationGoal()
+            {
+                MaxAcceleration = 50,
+                Apoapsis = 170,
+                Periapsis = 170
+            };
+
             var input = new AscentSimulationControl()
             {
                 TurnDelay = 60.0,
@@ -23,8 +30,16 @@ namespace RocketOptimize.App
             };
 
             var initialState = SimulationRenderer.CreateInitialState(5.0, Math.PI / 2);
+
+            var optimization = new AscentOptimization(goal, input, initialState, 0.1, 1);
+            optimization.Run(true); //First score
+            for(var i = 0; i < 150; i++)
+            {
+                optimization.Run();
+            }
+
             var simulation = new AscentSimulation(
-                input,
+                optimization.BestGuess,
                 initialState
             );
             using (var window = new SimulationRenderer(simulation))

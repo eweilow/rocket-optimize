@@ -8,6 +8,7 @@ namespace RocketOptimize.Simulation
         public Vector3d[] FuturePositions;
         public double Apoapsis;
         public double Periapsis;
+        public double Eccentricity;
         public double SemiMajorAxis;
         public double SemiMinorAxis;
         public double SemiLatusRectum;
@@ -19,6 +20,7 @@ namespace RocketOptimize.Simulation
             FuturePositions = new Vector3d[length];
             Apoapsis = 0;
             Periapsis = 0;
+            Eccentricity = 0;
             SemiMajorAxis = 0;
             SemiMinorAxis = 0;
             SemiLatusRectum = 0;
@@ -155,6 +157,7 @@ namespace RocketOptimize.Simulation
 
             lookAheadState.Apoapsis = apoapsis - Constants.EarthRadius;
             lookAheadState.Periapsis = periapsis - Constants.EarthRadius;
+            lookAheadState.Eccentricity = eccentricity;
             lookAheadState.SemiMajorAxis = semiMajorAxis;
             lookAheadState.SemiMinorAxis = semiMinorAxis;
             lookAheadState.SemiLatusRectum = semiLatusRectum;
