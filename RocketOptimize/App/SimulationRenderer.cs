@@ -56,15 +56,10 @@ namespace RocketOptimize.App
         private readonly AscentSimulation _simulation;
         private readonly Timer _startTimer;
 
-        public SimulationRenderer(State initialState) : base()
+        public SimulationRenderer(AscentSimulation simulation) : base()
         {
-            _initialState = initialState;
-            _simulation = new AscentSimulation(
-                new Input[]{
-                    new Input(90f, 1f)
-                },
-                _initialState
-            );
+            _simulation = simulation;
+            _initialState = simulation.InitialState;
             _startTimer = new Timer(1000);
             VSync = VSyncMode.On;
         }

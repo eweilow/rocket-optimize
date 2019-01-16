@@ -9,7 +9,6 @@ namespace RocketOptimize.Simulation
 {
     public class AscentSimulation
     {
-        public readonly Input[] ControlInput;
         public readonly List<State> States = new List<State>();
 
 #if FAST_LOOKAHEAD
@@ -20,6 +19,8 @@ namespace RocketOptimize.Simulation
         public int LookAheadMicroSteps = 1; // Microsteps per saved step
 #endif
 
+        public readonly AscentSimulationControl ControlInput;
+        public readonly State InitialState;
         private State _currentState;
         private State _lastState;
         private IIntegrator _integrator = new RK4();
@@ -33,7 +34,7 @@ namespace RocketOptimize.Simulation
         }
 
         public AscentSimulation(
-            Input[] controlInput,
+            AscentSimulationControl controlInput,
             State initialState
         )
         {
@@ -41,6 +42,7 @@ namespace RocketOptimize.Simulation
             States.Add(initialState);
             _lastState = initialState;
             _currentState = initialState;
+            InitialState = initialState;
 
             for (var i = 0; i < LookAheadState.FuturePositions.Length; i++)
             {
@@ -98,19 +100,10 @@ namespace RocketOptimize.Simulation
             Vector3d vertical = state.Position.Normalized();
             Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
 
-            const double turnDelay = 60.0;
-            const double initialTurnDuration = 15.0;
-            const double turnDuration = 110.0;
-            const double thrustDuration = 333;
-            const double thrustCurve = 620.0;
-            const double minThrust = 15.0;
-            const double maxThrust = 65;
+            double angle = ControlInput.ComputeAngle(state.Time);
+            double thrust = ControlInput.ComputeThrust(state.Time);
 
-            double angle = 10 * Math.Min(1.0, state.Time / initialTurnDuration) + 80.0 * Math.Min(1.0, Math.Max(0.0, state.Time - turnDelay) / turnDuration);
-            double thrust = state.Time < thrustDuration ? minThrust + (maxThrust - minThrust) * (Math.Min(1.0, state.Time / thrustCurve)) : 0.0;
-            double radian = angle / 180.0 * Math.PI;
-
-            Vector3d thrustDirection = Math.Cos(radian) * vertical + Math.Sin(radian) * horizontal;
+            Vector3d thrustDirection = Math.Cos(angle) * vertical + Math.Sin(angle) * horizontal;
             state.Thrust = thrustDirection * thrust;
 
             return state.Acceleration = ComputeCurrentNaturalAcceleration(ref state, false) + state.Thrust;
