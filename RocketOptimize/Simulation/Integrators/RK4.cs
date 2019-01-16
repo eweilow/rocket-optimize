@@ -11,7 +11,7 @@ namespace RocketOptimize.Simulation.Integrators
 
         public void Integrate(double timeStep, ref State currentState, out State newState, AccelerationCalculator calculateAcceleration)
         {
-            var a1 = calculateAcceleration(ref currentState) * timeStep;
+            var a1 = calculateAcceleration(timeStep, ref currentState) * timeStep;
             var b1 = currentState.Velocity * timeStep;
             var d1 = Vector3d.Dot(currentState.Drag, currentState.Velocity.Normalized()) * timeStep;
             var g1 = Vector3d.Dot(currentState.Gravity, currentState.Velocity.Normalized()) * timeStep;
@@ -22,7 +22,7 @@ namespace RocketOptimize.Simulation.Integrators
                 Position = currentState.Position + b1 / 2.0,
                 Velocity = currentState.Velocity + a1 / 2.0
             };
-            var a2 = calculateAcceleration(ref state2) * timeStep;
+            var a2 = calculateAcceleration(timeStep, ref state2) * timeStep;
             var b2 = state2.Velocity * timeStep;
             var d2 = Vector3d.Dot(currentState.Drag, currentState.Velocity.Normalized()) * timeStep;
             var g2 = Vector3d.Dot(currentState.Gravity, currentState.Velocity.Normalized()) * timeStep;
@@ -33,7 +33,7 @@ namespace RocketOptimize.Simulation.Integrators
                 Position = currentState.Position + b2 / 2.0,
                 Velocity = currentState.Velocity + a2 / 2.0
             };
-            var a3 = calculateAcceleration(ref state3) * timeStep;
+            var a3 = calculateAcceleration(timeStep, ref state3) * timeStep;
             var b3 = state3.Velocity * timeStep;
             var d3 = Vector3d.Dot(currentState.Drag, currentState.Velocity.Normalized()) * timeStep;
             var g3 = Vector3d.Dot(currentState.Gravity, currentState.Velocity.Normalized()) * timeStep;
@@ -44,7 +44,7 @@ namespace RocketOptimize.Simulation.Integrators
                 Position = currentState.Position + b3,
                 Velocity = currentState.Velocity + a3
             };
-            var a4 = calculateAcceleration(ref state3) * timeStep;
+            var a4 = calculateAcceleration(timeStep, ref state3) * timeStep;
             var b4 = state3.Velocity * timeStep;
             var d4 = Vector3d.Dot(currentState.Drag, currentState.Velocity.Normalized()) * timeStep;
             var g4 = Vector3d.Dot(currentState.Gravity, currentState.Velocity.Normalized()) * timeStep;

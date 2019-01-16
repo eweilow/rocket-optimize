@@ -19,6 +19,7 @@ namespace RocketOptimize.Simulation
         public int LookAheadMicroSteps = 1; // Microsteps per saved step
 #endif
 
+        public readonly AscentSimulationGoal Goal;
         public readonly AscentSimulationControl ControlInput;
         public readonly State InitialState;
         private State _currentState;
@@ -34,10 +35,12 @@ namespace RocketOptimize.Simulation
         }
 
         public AscentSimulation(
+            AscentSimulationGoal goal,
             AscentSimulationControl controlInput,
             State initialState
         )
         {
+            Goal = goal;
             ControlInput = controlInput;
             States.Add(initialState);
             _lastState = initialState;
@@ -61,26 +64,27 @@ namespace RocketOptimize.Simulation
             Vector3d heading = state.Velocity / velocity;
 
 
-            double velocitySquared = state.Velocity.LengthSquared;
+            double velocitySquared = velocity * velocity;
             state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
             state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
 
             double MachNumber = velocity / 1000.0;
             double CoefficientOfDrag;
-            if(MachNumber < 1)
+            if (MachNumber < 1)
             {
                 CoefficientOfDrag = 0.3 + MachNumber;
-            } else
+            }
+            else
             {
                 CoefficientOfDrag = 1.3 * Math.Exp(-MachNumber);
             }
 
             const double Radius = 5 / 2;
             const double Area = Radius * Radius * Math.PI;
-            double Mass = 500000 - 450000 * Math.Min(1.0, state.Time/300.0);
+            double Mass = 500000 - 450000 * Math.Min(1.0, state.Time / 300.0);
 
             state.Drag = -heading * velocitySquared * CoefficientOfDrag * Area * state.Atmosphere.Density / (2.0 * Mass);
-
+            //Console.WriteLine("{0} {1}", state.Gravity, state.Drag);
             return state.Acceleration = state.Gravity + state.Drag;
         }
 
@@ -89,7 +93,30 @@ namespace RocketOptimize.Simulation
             return ComputeCurrentNaturalAcceleration(ref state, true);
         }
 
-        private Vector3d ComputeCurrentAcceleration(ref State state)
+        public bool isTerminalGuidanceTriggered = false;
+        private Vector3d terminalGuidanceThrust;
+        private void TerminalGuidanceThrust(double dt, ref State state, double radius)
+        {
+            Vector3d vertical = state.Position.Normalized();
+            Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
+            
+            double pitch, thrust;
+            ControlInput.TerminalGuidance(Goal, dt,
+                (state.Position.Length - Constants.EarthRadius) / 1000,
+                Vector3d.Dot(state.Velocity, vertical),
+                LookAheadState.Periapsis / 1000,
+                LookAheadState.Apoapsis / 1000,
+                out pitch,
+                out thrust
+            );
+
+            double thrustValue = ControlInput.ComputeThrust(state.Time);
+
+            Vector3d thrustDirection = Math.Cos(Math.PI/2 - pitch) * vertical + Math.Sin(Math.PI / 2 - pitch) * horizontal;
+            terminalGuidanceThrust = thrustDirection * thrustValue * thrust;
+        }
+
+        private Vector3d ComputeCurrentAcceleration(double dt, ref State state)
         {
             double radius = state.Position.Length;
             if (radius < Constants.EarthRadius - 0.1)
@@ -98,21 +125,39 @@ namespace RocketOptimize.Simulation
             }
 
             Vector3d vertical = state.Position.Normalized();
-            Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
+            double verticalVelocity = Vector3d.Dot(state.Velocity, vertical);
+            var initiallyWasGuidanceTriggered = isTerminalGuidanceTriggered;
+            if (isTerminalGuidanceTriggered || (radius > Constants.EarthRadius + 100000 && Math.Abs(verticalVelocity) < 5))
+            {
+                isTerminalGuidanceTriggered = true;
+                if (initiallyWasGuidanceTriggered)
+                {
+                    state.Thrust = terminalGuidanceThrust;
+                }
+            }
 
-            double angle = ControlInput.ComputeAngle(state.Time);
-            double thrust = ControlInput.ComputeThrust(state.Time);
+            if(!initiallyWasGuidanceTriggered)
+            {
+                Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
 
-            Vector3d thrustDirection = Math.Cos(angle) * vertical + Math.Sin(angle) * horizontal;
-            state.Thrust = thrustDirection * thrust;
+                double angle = ControlInput.ComputeAngle(state.Time);
+                double thrust = ControlInput.ComputeThrust(state.Time);
 
-            return state.Acceleration = ComputeCurrentNaturalAcceleration(ref state, false) + state.Thrust;
+                Vector3d thrustDirection = Math.Cos(angle) * vertical + Math.Sin(angle) * horizontal;
+                state.Thrust = thrustDirection * thrust;
+            }
+
+
+            state.Acceleration = ComputeCurrentNaturalAcceleration(ref state, false) + state.Thrust;
+
+            return state.Acceleration;
         }
 
         public void FastTick(double updateTime, int microSteps)
         {
             for (int j = 0; j < microSteps; j++)
             {
+                TerminalGuidanceThrust(updateTime / microSteps, ref _currentState, _currentState.Position.Length);
                 _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
             }
             LookAhead.CalculateOrbit(ref LookAheadState, _currentState);
@@ -124,6 +169,7 @@ namespace RocketOptimize.Simulation
             {
                 for (int j = 0; j < microSteps; j++)
                 {
+                    TerminalGuidanceThrust(updateTime / microSteps, ref _currentState, _currentState.Position.Length);
                     _integrator.Integrate(updateTime / microSteps, ref _currentState, out _currentState, ComputeCurrentAcceleration);
                     double radius = _currentState.Position.Length;
                     if (radius < Constants.EarthRadius - 0.1)
@@ -134,13 +180,13 @@ namespace RocketOptimize.Simulation
                 }
                 if ((_lastState.Position - _currentState.Position).LengthSquared > 100.0)
                 {
-                    ComputeCurrentAcceleration(ref _currentState);
+                    ComputeCurrentAcceleration(updateTime, ref _currentState);
                     States.Add(_currentState);
                     _lastState = _currentState;
                 }
             }
 
-            ComputeCurrentAcceleration(ref _currentState);
+            ComputeCurrentAcceleration(updateTime, ref _currentState);
             States.Add(_currentState);
             _lastState = _currentState;
 

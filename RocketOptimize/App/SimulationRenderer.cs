@@ -1,4 +1,5 @@
 ﻿//#define ORBIT_DEBUG
+//#define FORCE_DEBUG
 #define USE_LOOKAHEAD_FOR_SCALING
 
 using OpenTK;
@@ -99,6 +100,10 @@ namespace RocketOptimize.App
             {
                 _simulation.Tick(updateTime, Rate, MicroStepping);
             }
+            if(_simulation.isTerminalGuidanceTriggered)
+            {
+                Rate = 15;
+            }
             State currentState = _simulation.CurrentState;
             Title = string.Format("{0,2:F} ups {9,2:F} fps - t: {3,0:F}s - r: {1,2:F} km | {10,1:F} x {11,1:F} km  - P: {2,2:F} kPa - v: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - rho: {6,2:F} kg/m^3 - g: {7,2:F} m/s - d: {8,2:F} m/s",
                 _updateMeasurer.CurrentRate,
@@ -111,8 +116,8 @@ namespace RocketOptimize.App
                 currentState.LossesToGravity,
                 currentState.LossesToDrag,
                 _renderMeasurer.CurrentRate,
-                _simulation.LookAheadState.Apoapsis,
-                _simulation.LookAheadState.Periapsis
+                _simulation.LookAheadState.Apoapsis / 1000.0,
+                _simulation.LookAheadState.Periapsis / 1000.0
             );
             CenterCameraOnTrajectory();
             Camera.Update();

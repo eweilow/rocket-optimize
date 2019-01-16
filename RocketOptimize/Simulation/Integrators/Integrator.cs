@@ -1,9 +1,8 @@
-﻿using System;
-using OpenTK;
+﻿using OpenTK;
 
 namespace RocketOptimize.Simulation.Integrators
 {
-    public delegate Vector3d AccelerationCalculator(ref State state);
+    public delegate Vector3d AccelerationCalculator(double dt, ref State state);
 
     public interface IIntegrator
     {
