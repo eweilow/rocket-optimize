@@ -51,8 +51,11 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RateMeasurer.cs" />
     <Compile Include="Render\Camera.cs" />
     <Compile Include="Render\Window.cs" />
+    <Compile Include="SimulationRenderer.cs" />
+    <Compile Include="Timer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

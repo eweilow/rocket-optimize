@@ -4,7 +4,6 @@ using OpenTK;
 using RocketOptimize.Simulation.Integrators;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace RocketOptimize.Simulation
 {
@@ -56,16 +55,28 @@ namespace RocketOptimize.Simulation
             {
                 return -state.Velocity;
             }
-            Vector3d heading = state.Velocity.Normalized();
+            double velocity = state.Velocity.Length;
+            Vector3d heading = state.Velocity / velocity;
 
-            const double CoefficientOfDrag = 0.3;
-            const double Radius = 3.66 / 2;
-            const double Area = Radius * Radius * Math.PI;
-            const double Mass = 500000;
 
             double velocitySquared = state.Velocity.LengthSquared;
             state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
             state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
+
+            double MachNumber = velocity / 1000.0;
+            double CoefficientOfDrag;
+            if(MachNumber < 1)
+            {
+                CoefficientOfDrag = 0.3 + MachNumber;
+            } else
+            {
+                CoefficientOfDrag = 1.3 * Math.Exp(-MachNumber);
+            }
+
+            const double Radius = 5 / 2;
+            const double Area = Radius * Radius * Math.PI;
+            double Mass = 500000 - 450000 * Math.Min(1.0, state.Time/300.0);
+
             state.Drag = -heading * velocitySquared * CoefficientOfDrag * Area * state.Atmosphere.Density / (2.0 * Mass);
 
             return state.Acceleration = state.Gravity + state.Drag;
@@ -105,10 +116,8 @@ namespace RocketOptimize.Simulation
             return state.Acceleration = ComputeCurrentNaturalAcceleration(ref state, false) + state.Thrust;
         }
 
-        public double Tick(float updateTime, int rate, int microSteps)
+        public void Tick(float updateTime, int rate, int microSteps)
         {
-            var watch = new Stopwatch();
-            watch.Start();
             for (int i = 0; i < rate; i++)
             {
                 for (int j = 0; j < microSteps; j++)
@@ -174,11 +183,6 @@ namespace RocketOptimize.Simulation
                 }
             }
 #endif
-
-            watch.Stop();
-            double ticks = watch.ElapsedTicks;
-            double seconds = ticks / Stopwatch.Frequency;
-            return seconds;
         }
     }
 }
