@@ -18,10 +18,14 @@ namespace RocketOptimize.Simulation
             double distanceFromReachedAltitudeGoal = state.ReachedAltitude / 1000.0 - goal.Periapsis;
             double distanceFromAltitudeGoal = (state.Position.Length - Constants.EarthRadius) / 1000.0 - goal.Periapsis;
 
+            double totalFuel = guess.Rocket.TotalFuelMass();
+            double fuelLeft = (totalFuel - state.ExpendedMass) / totalFuel;
+
             return ErrorFunction(distanceFromApoapsisGoal, distanceScaling)
                     + ErrorFunction(distanceFromPeriapsisGoal, distanceScaling)
                     + ErrorFunction(distanceFromReachedAltitudeGoal, distanceScaling)
-                    + ErrorFunction(distanceFromAltitudeGoal, distanceScaling);                    
+                    + ErrorFunction(distanceFromAltitudeGoal, distanceScaling)
+                    + fuelLeft;
             //+ ErrorFunction((guess.ThrustDuration1 + guess.ThrustDuration2) - guess.ThrustCutoff, 1);
         }
 
