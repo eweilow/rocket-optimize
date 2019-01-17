@@ -115,7 +115,9 @@ namespace RocketOptimize.Simulation
         {
             return string.Format(
 @"
+InitialVerticalTime={9}
 KickPitchTime = {0},
+KickPitchAngle = {8},
 StagingAngle = {1},
 Stage1Duration = {2},
 Stage2Duration = {3},
@@ -131,7 +133,9 @@ Stage2MaxAcceleration = {7}
                 Stage1InitialAcceleration,
                 Stage1MaxAcceleration,
                 Stage2InitialAcceleration,
-                Stage2MaxAcceleration
+                Stage2MaxAcceleration,
+                KickPitchAngle,
+                InitialVerticalTime
             );
         }
     }

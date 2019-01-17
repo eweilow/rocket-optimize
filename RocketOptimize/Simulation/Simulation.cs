@@ -153,9 +153,8 @@ namespace RocketOptimize.Simulation
             var initiallyWasGuidanceTriggered = isTerminalGuidanceTriggered;
 
             // Console.WriteLine("{0} {1,2:F} {2,2:F}", isTerminalGuidanceTriggered, LookAheadState.Apoapsis / 1000, Goal.Apoapsis);
-            if (isTerminalGuidanceTriggered || 
-                (_currentAltitude > 100000 && Math.Abs(verticalVelocity) < 10) ||
-                LookAheadState.Apoapsis/1000 > Goal.Apoapsis
+            if (isTerminalGuidanceTriggered ||
+                _currentAltitude > 120000 && (Math.Abs(verticalVelocity) < 10 || LookAheadState.Apoapsis / 1000 > Goal.Apoapsis)
             )
             {
                 isTerminalGuidanceTriggered = true;
@@ -165,7 +164,7 @@ namespace RocketOptimize.Simulation
                 }
                 else
                 {
-                    Console.WriteLine("Terminal guidance triggered");
+                    //Console.WriteLine("Terminal guidance triggered");
                 }
             }
 
