@@ -42,7 +42,7 @@ namespace RocketOptimize.Simulation.Integrators.Tests
             var rk4 = new RK4();
             while (currentState.Position.Y >= -0.1f)
             {
-                rk4.Integrate(timeStep, ref currentState, out currentState, (ref State state) =>
+                rk4.Integrate(timeStep, ref currentState, out currentState, (double dt, ref State state) =>
                 {
                     return Vector3d.UnitY * Gravity;
                 });
