@@ -1,6 +1,6 @@
 ﻿//#define ORBIT_DEBUG
-#define FORCE_DEBUG
-#define USE_LOOKAHEAD_FOR_SCALING
+//#define FORCE_DEBUG
+//#define USE_LOOKAHEAD_FOR_SCALING
 
 using OpenTK;
 using OpenTK.Graphics.OpenGL;

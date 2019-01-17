@@ -1,6 +1,4 @@
-﻿#define FORCE_DEBUG
-#define USE_LOOKAHEAD_FOR_SCALING
-#define ROTATING_PLANET
+﻿//#define ROTATING_PLANET
 #define OPTIMIZE_TRAJECTORY
 
 using RocketOptimize.Simulation;
@@ -15,8 +13,8 @@ namespace RocketOptimize.App
         {
             var goal = new AscentSimulationGoal()
             {
-                Apoapsis = 200,
-                Periapsis = 200
+                Apoapsis = 220,
+                Periapsis = 220
             };
 
             var firstStageMerlins = new Engine()
@@ -31,24 +29,24 @@ namespace RocketOptimize.App
             var firstStage = new Stage()
             {
                 Engine = firstStageMerlins,
-                DryMass = 25000, //22200,
-                FuelMass = 433100 - 25000//22200,
+                DryMass = 22200,
+                FuelMass = 433100 - 22200,
             };
 
             var secondStageMerlin = new Engine()
             {
                 Count = 1,
-                SeaLevelSpecificImpulse = 348, //282,
+                SeaLevelSpecificImpulse = 282,
                 VacuumSpecificImpulse = 348,
-                SeaLevelThrust = 1100000, //845000,
-                VacuumThrust = 1100000, //934000
+                SeaLevelThrust = 1200000, //845000,
+                VacuumThrust = 1200000, //934000
             };
 
             var secondStage = new Stage()
             {
                 Engine = secondStageMerlin,
                 DryMass = 4000,
-                FuelMass = 111500 - 6000,
+                FuelMass = 111500 - 4000,
             };
 
             var fairing = new Fairing()
