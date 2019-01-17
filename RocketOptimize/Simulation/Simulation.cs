@@ -34,10 +34,13 @@ namespace RocketOptimize.Simulation
             }
         }
 
+        public double WindSurfaceVelocity;
+
         public AscentSimulation(
             AscentSimulationGoal goal,
             AscentSimulationControl controlInput,
-            State initialState
+            State initialState,
+            double windSurfaceVelocity = 0.0
         )
         {
             Goal = goal;
@@ -46,6 +49,7 @@ namespace RocketOptimize.Simulation
             _lastState = initialState;
             _currentState = initialState;
             InitialState = initialState;
+            WindSurfaceVelocity = windSurfaceVelocity;
 
             for (var i = 0; i < LookAheadState.FuturePositions.Length; i++)
             {
@@ -60,13 +64,19 @@ namespace RocketOptimize.Simulation
             {
                 return -state.Velocity;
             }
-            double velocity = state.Velocity.Length;
-            Vector3d heading = state.Velocity / velocity;
+            Vector3d heading = state.Velocity.Normalized();
 
-
-            double velocitySquared = velocity * velocity;
             state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
             state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
+
+            Vector3d vertical = state.Position / radius;
+            Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
+            double angularVelocity = WindSurfaceVelocity / Constants.EarthRadius;
+
+            Vector3d windVelocityVector = horizontal * angularVelocity * radius;
+            Vector3d windRelativeVelocity = state.Velocity - windVelocityVector;
+            double velocity = windRelativeVelocity.Length;
+            double velocitySquared = velocity * velocity;
 
             double MachNumber = velocity / 1000.0;
             double CoefficientOfDrag;
@@ -83,7 +93,7 @@ namespace RocketOptimize.Simulation
             const double Area = Radius * Radius * Math.PI;
             double Mass = 500000 - 450000 * Math.Min(1.0, state.Time / 300.0);
 
-            state.Drag = -heading * velocitySquared * CoefficientOfDrag * Area * state.Atmosphere.Density / (2.0 * Mass);
+            state.Drag = -windRelativeVelocity.Normalized() * velocitySquared * CoefficientOfDrag * Area * state.Atmosphere.Density / (2.0 * Mass);
             //Console.WriteLine("{0} {1}", state.Gravity, state.Drag);
             return state.Acceleration = state.Gravity + state.Drag;
         }
@@ -127,12 +137,21 @@ namespace RocketOptimize.Simulation
             Vector3d vertical = state.Position.Normalized();
             double verticalVelocity = Vector3d.Dot(state.Velocity, vertical);
             var initiallyWasGuidanceTriggered = isTerminalGuidanceTriggered;
-            if (isTerminalGuidanceTriggered || (radius > Constants.EarthRadius + 100000 && Math.Abs(verticalVelocity) < 5))
+
+            // Console.WriteLine("{0} {1,2:F} {2,2:F}", isTerminalGuidanceTriggered, LookAheadState.Apoapsis / 1000, Goal.Apoapsis);
+            if (isTerminalGuidanceTriggered || 
+                (radius > Constants.EarthRadius + 100000 && Math.Abs(verticalVelocity) < 5) ||
+                LookAheadState.Apoapsis/1000 > Goal.Apoapsis
+            )
             {
                 isTerminalGuidanceTriggered = true;
                 if (initiallyWasGuidanceTriggered)
                 {
                     state.Thrust = terminalGuidanceThrust;
+                }
+                else
+                {
+                    Console.WriteLine("Terminal guidance triggered");
                 }
             }
 

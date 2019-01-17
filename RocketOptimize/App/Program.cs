@@ -1,9 +1,10 @@
 ﻿#define FORCE_DEBUG
 #define USE_LOOKAHEAD_FOR_SCALING
+#define ROTATING_PLANET
+//#define OPTIMIZE_TRAJECTORY
 
 using RocketOptimize.Simulation;
 using System;
-
 
 namespace RocketOptimize.App
 {
@@ -33,44 +34,38 @@ namespace RocketOptimize.App
 
                 Stage2InitialAcceleration = 8,
                 Stage2MaxAcceleration = 30
-                //TurnDelay = 30.0, //60.0,
-                //InitialTurnDuration = 20, //15.0,
-                //TurnDuration = 80.0, //210.0,
-                //ThrustDuration = 343, //400,
-                //ThrustCutoff = 253, //400,
-                //TurnDelay = 50,
-                //InitialTurnDuration = 30,
-                //TurnDuration = 90,
-                //ThrustDuration1 = 133.89,
-                //ThrustDuration2 = 200.89,
-                //ThrustCutoff = 315.50,
-                //MinThrust1 = 12.0,
-                //MaxThrust1 = 40,
-                //MinThrust2 = 25,
-                //MaxThrust2 = 45
             };
 
             var initialState = SimulationRenderer.CreateInitialState(5.0, Math.PI / 2);
+#if ROTATING_PLANET
+            initialState.Velocity.X += Constants.EarthSurfaceVelocity;
+#endif
 
-            /*
+#if OPTIMIZE_TRAJECTORY
             var optimization = new AscentOptimization(goal, input, initialState, 0.5, 1);
             for(var i = 0; i < 10000; i++)
             {
                 double radius = 1.0;
                 double r = radius * (5 - (i % 5)) / 5.0;
                 optimization.Run(r);
-            }*/
+            }
+#endif
 
             var simulation = new AscentSimulation(
                 goal,
                 input, //optimization.BestGuess,
-                initialState
+                initialState,
+#if ROTATING_PLANET
+                Constants.EarthSurfaceVelocity
+#else
+                0.0
+#endif
             );
             using (var window = new SimulationRenderer(simulation))
             {
-                window.Rate = 150;
-                window.MicroStepping = 5;
-                window.Start(60.0);
+                window.Rate = 5;
+                window.MicroStepping = 4;
+                window.Start(30.0);
             }
         }
     }
