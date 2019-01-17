@@ -1,6 +1,6 @@
 ﻿//#define ORBIT_DEBUG
-#define FORCE_DEBUG
-#define USE_LOOKAHEAD_FOR_SCALING
+//#define FORCE_DEBUG
+//#define USE_LOOKAHEAD_FOR_SCALING
 
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
@@ -96,16 +96,16 @@ namespace RocketOptimize.App
 
         public override void UpdateTick(float updateTime)
         {
-            if (_startTimer.IsDone())
+            if (_startTimer.IsDone() && _simulation.CurrentState.IsDone != true)
             {
                 _simulation.Tick(updateTime, Rate, MicroStepping);
             }
             if(_simulation.isTerminalGuidanceTriggered)
             {
-                //Rate = 1;
+                Rate = 10;
             }
             State currentState = _simulation.CurrentState;
-            Title = string.Format("{0,2:F} ups {9,2:F} fps - t: {3,0:F}s - r: {1,2:F} km | {10,1:F} x {11,1:F} km  - P: {2,2:F} kPa - v: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - rho: {6,2:F} kg/m^3 - g: {7,2:F} m/s - d: {8,2:F} m/s",
+            Title = string.Format("{0,2:F} u {9,2:F} f - t: {3,0:F}s - r: {1,2:F} km | {10,1:F} x {11,1:F} km  - P: {2,2:F} kPa - v: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - rho: {6,2:F} kg/m^3 - g: {7,2:F} m/s - d: {8,2:F} m/s - mf {12,2:F} m {13,2:F}",
                 _updateMeasurer.CurrentRate,
                 (currentState.Position.Length - Constants.EarthRadius) / 1000.0,
                 currentState.Atmosphere.Pressure / 1000.0,
@@ -117,7 +117,9 @@ namespace RocketOptimize.App
                 currentState.LossesToDrag,
                 _renderMeasurer.CurrentRate,
                 _simulation.LookAheadState.Apoapsis / 1000.0,
-                _simulation.LookAheadState.Periapsis / 1000.0
+                _simulation.LookAheadState.Periapsis / 1000.0,
+                currentState.MassFlow,
+                _simulation.ControlInput.Rocket.TotalFuelMass() - currentState.ExpendedMass
             );
             CenterCameraOnTrajectory();
             Camera.Update();

@@ -11,5 +11,6 @@ namespace RocketOptimize.Simulation
         public static double G0 = 9.0866;
         public static double SecondsInDay = 60 * 60 * 24;
         public static double EarthSurfaceVelocity = EarthRadius * 2 * Math.PI / SecondsInDay;
+        public static double EarthSurfacePressure = Models.StandardAtmosphere(0.0).Pressure;
     }
 }

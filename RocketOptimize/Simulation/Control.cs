@@ -1,22 +1,18 @@
-﻿using System;
+﻿using RocketOptimize.Simulation.Initialization;
+using System;
 
 namespace RocketOptimize.Simulation
 {
+
+
     public struct AscentSimulationControl
     {
         public double InitialVerticalTime;
         public double KickPitchTime;
         public double KickPitchAngle;
         public double StagingAngle;
-
-        public double Stage1Duration;
-        public double Stage2Duration;
-
-        public double Stage1InitialAcceleration;
-        public double Stage1MaxAcceleration;
-
-        public double Stage2InitialAcceleration;
-        public double Stage2MaxAcceleration;
+        public double MaxAcceleration;
+        public Rocket Rocket;
 
         private static double LinearBoundedInterpolation(
             double time,
@@ -35,30 +31,37 @@ namespace RocketOptimize.Simulation
             return degree / 180.0 * Math.PI;
         }
 
-        public double ComputeAngle(double time)
+        public double ComputeMass(double reachedAltitude, double expendedMass)
+        {
+            return Rocket.ComputeMass(reachedAltitude, expendedMass);
+        }
+
+        public double ComputeAngle(double time, double expendedMass)
         {
             if (time < KickPitchTime)
             {
                 return Radian(LinearBoundedInterpolation(time, InitialVerticalTime, KickPitchTime, 0, KickPitchAngle));
             }
-            if (time < Stage1Duration)
+            var activeStage = Rocket.ComputeActiveStage(expendedMass, out double fuelMass);
+            //Console.WriteLine("{0} {1}", activeStage, fuelMass);
+            if (activeStage == 0)
             {
-                return Radian(LinearBoundedInterpolation(time, KickPitchTime, Stage1Duration, KickPitchAngle, StagingAngle));
+                double FuelMassFlowFromKickPitch = Rocket.MassFlow(expendedMass, 1.0, Constants.EarthSurfacePressure, out double specificImpulse, out double thrust);
+                return Radian(LinearBoundedInterpolation(fuelMass, Rocket.Stages[activeStage].FuelMass - FuelMassFlowFromKickPitch * KickPitchTime, 0, KickPitchAngle, StagingAngle));
             }
-            return Radian(LinearBoundedInterpolation(time, Stage1Duration, Stage1Duration + Stage2Duration, StagingAngle, 90));
+            else if (activeStage == 1)
+            {
+                return Radian(LinearBoundedInterpolation(fuelMass, Rocket.Stages[activeStage].FuelMass, 0, StagingAngle, 90));
+            }
+            return 90;
         }
 
-        public double ComputeThrust(double time)
+        public double ComputeThrust(double time, double throttle, double expendedMass, double pressure, out double massFlow)
         {
-            if (time < Stage1Duration)
-            {
-                return LinearBoundedInterpolation(time, KickPitchTime, Stage1Duration, Stage1InitialAcceleration, Stage1MaxAcceleration);
-            }
-            if (time < Stage1Duration + Stage2Duration)
-            {
-                return LinearBoundedInterpolation(time, Stage1Duration, Stage1Duration + Stage2Duration, Stage2InitialAcceleration, Stage2MaxAcceleration);
-            }
-            return 0.0;
+            double thrust;
+            double specificImpulse;
+            massFlow = Rocket.MassFlow(expendedMass, throttle, pressure, out specificImpulse, out thrust);
+            return thrust;
         }
 
         private static double Clamp(double degree, double min, double max)
@@ -67,8 +70,23 @@ namespace RocketOptimize.Simulation
         }
 
         double aggregatedError;
-        public void TerminalGuidance(AscentSimulationGoal goal, double timestep, double altitude, double verticalSpeed, double periapsis, double apoapsis, out double pitch, out double thrust)
+        public void TerminalGuidance(AscentSimulationGoal goal, double timestep, double altitude, double verticalSpeed, double periapsis, double apoapsis, out double pitch, out double thrust, out bool isDone)
         {
+            double maxAngle = 15;
+            double minAngle = -5;
+            double offset = 5;
+            isDone = false;
+
+            if (periapsis > 0)
+            {
+                maxAngle = 30;
+                minAngle = -30;
+            }
+            if (periapsis > -500)
+            {
+                offset = 0;
+            }
+
             const double kP = 5;
             const double kI = 5;
 
@@ -77,11 +95,23 @@ namespace RocketOptimize.Simulation
             aggregatedError += error * timestep;
             double I = aggregatedError * kI;
 
-            double degrees = Clamp(P + I, -5, 15);
+            double degrees = Clamp(P + I + offset, minAngle, maxAngle);
 
-            if (periapsis > goal.Periapsis - 2 || apoapsis > goal.Apoapsis + 1)
+            var periapsisIsGood = periapsis > goal.Periapsis - 2;
+            var apoapsisIsGood = apoapsis > goal.Apoapsis - 2 && apoapsis < goal.Apoapsis + 3;
+            var verticalVelocityIsGood = Math.Abs(verticalSpeed) < 15;
+            //Console.WriteLine("{0,2:F} km x {1,2:F} km, v: {2,2:F} m/s", periapsis, apoapsis, verticalSpeed);
+            if (periapsisIsGood && apoapsisIsGood)
             {
+                //Console.WriteLine("CANCELLING THRUST: periapsisIsGood && apoapsisIsGood");
                 thrust = 0;
+                isDone = true;
+            }
+            else if(periapsisIsGood && verticalVelocityIsGood)
+            {
+                //Console.WriteLine("CANCELLING THRUST: periapsisIsGood && verticalVelocityIsGood");
+                thrust = 0;
+                isDone = true;
             }
             else
             if (periapsis > goal.Periapsis - 10)
@@ -106,7 +136,7 @@ namespace RocketOptimize.Simulation
             //Console.WriteLine("{0,2:F}/{1,2:F} {2,2:F}/{3,2:F} = {4,2:F}, {5,2:F}", periapsis, goal.Periapsis, apoapsis, goal.Apoapsis, thrust, degrees);
 
             //double degrees = -verticalSpeed;
-            //Console.WriteLine("{0,2:F}/{1,2:F} @ {2,2:F}, {3,2:F} deg, P{4,2:F} I{5,2:F}", altitude, verticalSpeed, P + I, degrees, P, I);
+            //Console.WriteLine("{0,2:F}/{1,2:F} @ {2,2:F}, {3,2:F} deg, P{4,2:F} I{5,2:F}", altitude, verticalSpeed, P + I + 5, degrees, P, I);
             pitch = Radian(degrees);
 
         }
@@ -115,27 +145,17 @@ namespace RocketOptimize.Simulation
         {
             return string.Format(
 @"
-InitialVerticalTime={9}
 KickPitchTime = {0},
-KickPitchAngle = {8},
 StagingAngle = {1},
-Stage1Duration = {2},
-Stage2Duration = {3},
-Stage1InitialAcceleration = {4},
-Stage1MaxAcceleration = {5},
-Stage2InitialAcceleration = {6},
-Stage2MaxAcceleration = {7}
+KickPitchAngle = {2},
+InitialVerticalTime = {3},
+MaxAcceleration = {4}
 ",
                 KickPitchTime,
                 StagingAngle,
-                Stage1Duration,
-                Stage2Duration,
-                Stage1InitialAcceleration,
-                Stage1MaxAcceleration,
-                Stage2InitialAcceleration,
-                Stage2MaxAcceleration,
                 KickPitchAngle,
-                InitialVerticalTime
+                InitialVerticalTime,
+                MaxAcceleration
             );
         }
     }

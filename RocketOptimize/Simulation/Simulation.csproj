@@ -47,6 +47,11 @@
     <Compile Include="Constants.cs" />
     <Compile Include="Control.cs" />
     <Compile Include="Goal.cs" />
+    <Compile Include="Initialization\Engine.cs" />
+    <Compile Include="Initialization\Fairing.cs" />
+    <Compile Include="Initialization\Payload.cs" />
+    <Compile Include="Initialization\Rocket.cs" />
+    <Compile Include="Initialization\Stage.cs" />
     <Compile Include="Integrators\Integrator.cs" />
     <Compile Include="Integrators\RK4.cs" />
     <Compile Include="Models.cs" />
