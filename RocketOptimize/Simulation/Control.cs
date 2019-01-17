@@ -86,7 +86,17 @@ namespace RocketOptimize.Simulation
             else
             if (periapsis > goal.Periapsis - 25)
             {
-                thrust = 0.2;
+                thrust = 0.05;
+            }
+            else
+            if (periapsis > 0)
+            {
+                thrust = 0.25;
+            }
+            else
+            if (periapsis > -100)
+            {
+                thrust = 0.5;
             }
             else
             {
