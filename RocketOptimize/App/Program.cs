@@ -1,6 +1,6 @@
 ﻿#define FORCE_DEBUG
 #define USE_LOOKAHEAD_FOR_SCALING
-#define ROTATING_PLANET
+//#define ROTATING_PLANET
 //#define OPTIMIZE_TRAJECTORY
 
 using RocketOptimize.Simulation;
@@ -27,7 +27,7 @@ namespace RocketOptimize.App
                 StagingAngle = 68.7,
 
                 Stage1Duration = 155,
-                Stage2Duration = 340,
+                Stage2Duration = 400,
 
                 Stage1InitialAcceleration = 13,
                 Stage1MaxAcceleration = 40,
@@ -63,9 +63,9 @@ namespace RocketOptimize.App
             );
             using (var window = new SimulationRenderer(simulation))
             {
-                window.Rate = 5;
-                window.MicroStepping = 4;
-                window.Start(30.0);
+                window.Rate = 15;
+                window.MicroStepping = 10;
+                window.Start(60.0);
             }
         }
     }

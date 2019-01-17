@@ -102,7 +102,7 @@ namespace RocketOptimize.App
             }
             if(_simulation.isTerminalGuidanceTriggered)
             {
-                Rate = 15;
+                Rate = 1;
             }
             State currentState = _simulation.CurrentState;
             Title = string.Format("{0,2:F} ups {9,2:F} fps - t: {3,0:F}s - r: {1,2:F} km | {10,1:F} x {11,1:F} km  - P: {2,2:F} kPa - v: {4,2:F} km/s - thrust: {5,2:F} m/s^2 - rho: {6,2:F} kg/m^3 - g: {7,2:F} m/s - d: {8,2:F} m/s",

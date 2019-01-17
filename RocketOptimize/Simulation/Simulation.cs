@@ -57,23 +57,33 @@ namespace RocketOptimize.Simulation
             }
         }
 
+        private double _currentRadius;
+        private double _currentAltitude;
+
+        private Vector3d _vertical;
+        private Vector3d _horizontal;
+
+        private void PrecomputeState(ref State state)
+        {
+            _currentRadius = state.Position.Length;
+            _currentAltitude = _currentRadius - Constants.EarthRadius;
+            _vertical = state.Position / _currentRadius;
+            _horizontal = Vector3d.Cross(_vertical, Vector3d.UnitZ).Normalized(); // vertical and Z should be perpendicular;
+        }
+
         private Vector3d ComputeCurrentNaturalAcceleration(ref State state, bool clamp)
         {
-            double radius = state.Position.Length;
-            if (clamp && radius < Constants.EarthRadius - 0.1)
+            if (clamp && _currentAltitude < 0.1)
             {
                 return -state.Velocity;
             }
-            Vector3d heading = state.Velocity.Normalized();
 
-            state.Atmosphere = Models.AtmosphereLerp.Get(radius - Constants.EarthRadius);
+            state.Atmosphere = Models.AtmosphereLerp.Get(_currentRadius - Constants.EarthRadius);
             state.Gravity = Models.Gravity(Constants.EarthGravitationalConstant, state.Position, Vector3d.Zero);
 
-            Vector3d vertical = state.Position / radius;
-            Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
             double angularVelocity = WindSurfaceVelocity / Constants.EarthRadius;
 
-            Vector3d windVelocityVector = horizontal * angularVelocity * radius;
+            Vector3d windVelocityVector = _horizontal * angularVelocity * _currentRadius;
             Vector3d windRelativeVelocity = state.Velocity - windVelocityVector;
             double velocity = windRelativeVelocity.Length;
             double velocitySquared = velocity * velocity;
@@ -107,13 +117,17 @@ namespace RocketOptimize.Simulation
         private Vector3d terminalGuidanceThrust;
         private void TerminalGuidanceThrust(double dt, ref State state, double radius)
         {
-            Vector3d vertical = state.Position.Normalized();
-            Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
+            if(isTerminalGuidanceTriggered == false)
+            {
+                return;
+            }
+
+            PrecomputeState(ref state);
             
             double pitch, thrust;
             ControlInput.TerminalGuidance(Goal, dt,
                 (state.Position.Length - Constants.EarthRadius) / 1000,
-                Vector3d.Dot(state.Velocity, vertical),
+                Vector3d.Dot(state.Velocity, _vertical),
                 LookAheadState.Periapsis / 1000,
                 LookAheadState.Apoapsis / 1000,
                 out pitch,
@@ -122,25 +136,25 @@ namespace RocketOptimize.Simulation
 
             double thrustValue = ControlInput.ComputeThrust(state.Time);
 
-            Vector3d thrustDirection = Math.Cos(Math.PI/2 - pitch) * vertical + Math.Sin(Math.PI / 2 - pitch) * horizontal;
+            Vector3d thrustDirection = Math.Cos(Math.PI/2 - pitch) * _vertical + Math.Sin(Math.PI / 2 - pitch) * _horizontal;
             terminalGuidanceThrust = thrustDirection * thrustValue * thrust;
         }
 
         private Vector3d ComputeCurrentAcceleration(double dt, ref State state)
         {
-            double radius = state.Position.Length;
-            if (radius < Constants.EarthRadius - 0.1)
+            PrecomputeState(ref state);
+
+            if (_currentAltitude < 0.1)
             {
                 return -state.Velocity;
             }
 
-            Vector3d vertical = state.Position.Normalized();
-            double verticalVelocity = Vector3d.Dot(state.Velocity, vertical);
+            double verticalVelocity = Vector3d.Dot(state.Velocity, _vertical);
             var initiallyWasGuidanceTriggered = isTerminalGuidanceTriggered;
 
             // Console.WriteLine("{0} {1,2:F} {2,2:F}", isTerminalGuidanceTriggered, LookAheadState.Apoapsis / 1000, Goal.Apoapsis);
             if (isTerminalGuidanceTriggered || 
-                (radius > Constants.EarthRadius + 100000 && Math.Abs(verticalVelocity) < 5) ||
+                (_currentAltitude > 100000 && Math.Abs(verticalVelocity) < 10) ||
                 LookAheadState.Apoapsis/1000 > Goal.Apoapsis
             )
             {
@@ -157,12 +171,10 @@ namespace RocketOptimize.Simulation
 
             if(!initiallyWasGuidanceTriggered)
             {
-                Vector3d horizontal = Vector3d.Cross(vertical, Vector3d.UnitZ).Normalized();
-
                 double angle = ControlInput.ComputeAngle(state.Time);
                 double thrust = ControlInput.ComputeThrust(state.Time);
 
-                Vector3d thrustDirection = Math.Cos(angle) * vertical + Math.Sin(angle) * horizontal;
+                Vector3d thrustDirection = Math.Cos(angle) * _vertical + Math.Sin(angle) * _horizontal;
                 state.Thrust = thrustDirection * thrust;
             }
 

@@ -79,12 +79,12 @@ namespace RocketOptimize.Simulation
 
             double degrees = Clamp(P + I, -5, 15);
 
-            if (periapsis > goal.Periapsis - 1 || apoapsis > goal.Apoapsis + 1)
+            if (periapsis > goal.Periapsis - 2 || apoapsis > goal.Apoapsis + 1)
             {
                 thrust = 0;
             }
             else
-            if (periapsis > goal.Periapsis - 25)
+            if (periapsis > goal.Periapsis - 10)
             {
                 thrust = 0.05;
             }
@@ -103,6 +103,7 @@ namespace RocketOptimize.Simulation
 
                 thrust = 1;
             }
+            //Console.WriteLine("{0,2:F}/{1,2:F} {2,2:F}/{3,2:F} = {4,2:F}, {5,2:F}", periapsis, goal.Periapsis, apoapsis, goal.Apoapsis, thrust, degrees);
 
             //double degrees = -verticalSpeed;
             //Console.WriteLine("{0,2:F}/{1,2:F} @ {2,2:F}, {3,2:F} deg, P{4,2:F} I{5,2:F}", altitude, verticalSpeed, P + I, degrees, P, I);
