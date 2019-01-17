@@ -67,7 +67,11 @@ namespace RocketOptimize.Simulation.Integrators
                 Acceleration = currentState.Acceleration,
                 Gravity = currentState.Gravity,
                 Drag = currentState.Drag,
-                Thrust = currentState.Thrust
+                Thrust = currentState.Thrust,
+                MassFlow = currentState.MassFlow,
+                ReachedAltitude = currentState.ReachedAltitude,
+                Atmosphere = currentState.Atmosphere,
+                IsDone = currentState.IsDone
             };
         }
     }

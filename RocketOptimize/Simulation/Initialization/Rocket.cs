@@ -12,10 +12,7 @@ namespace RocketOptimize.Simulation.Initialization
         {
             for (var i = 0; i < stage; i++)
             {
-                if (expendedMass > Stages[i].FuelMass)
-                {
-                    expendedMass -= Stages[i].FuelMass;
-                }
+                expendedMass -= Stages[i].FuelMass;
             }
 
             return Math.Max(0, Math.Min(Stages[stage].FuelMass, Stages[stage].FuelMass - expendedMass));
@@ -26,7 +23,7 @@ namespace RocketOptimize.Simulation.Initialization
             for (var i = 0; i < Stages.Length; i++)
             {
                 fuelMass = ComputeStageFuelMass(i, expendedMass);
-                if (fuelMass > 0.0)
+                if (fuelMass > 5.0)
                 {
                     return i;
                 }
@@ -38,7 +35,21 @@ namespace RocketOptimize.Simulation.Initialization
         public double MassFlow(double expendedMass, double throttle, double pressure, out double specificImpulse, out double thrust)
         {
             var activeStage = ComputeActiveStage(expendedMass, out double fuelMass);
-            return Stages[activeStage].Engine.MassFlow(throttle, pressure, out specificImpulse, out thrust);
+            if (fuelMass > 0)
+            {
+                return Stages[activeStage].Engine.MassFlow(throttle, pressure, out specificImpulse, out thrust);
+            }
+            return Stages[activeStage].Engine.MassFlow(0, pressure, out specificImpulse, out thrust);
+        }
+
+        public double TotalFuelMass()
+        {
+            double mass = 0.0;
+            foreach(var stage in Stages)
+            {
+                mass += stage.FuelMass;
+            }
+            return mass;
         }
 
         public double ComputeMass(double reachedAltitude, double expendedMass)
@@ -56,17 +67,12 @@ namespace RocketOptimize.Simulation.Initialization
                 }
             }
 
-            for (var i = 0; i < Stages.Length; i++)
+            var activeStage = ComputeActiveStage(expendedMass, out double fuelMass);
+            currentMass += Stages[activeStage].DryMass;
+            currentMass += fuelMass;
+            for (var i = activeStage + 1; i < Stages.Length; i++)
             {
-                double fuelMass = ComputeStageFuelMass(i, expendedMass);
-                if (fuelMass > 0.0)
-                {
-                    currentMass += fuelMass + Stages[i].DryMass;
-                }
-                else if (i + 1 == Stages.Length)
-                {
-                    currentMass += Stages[i].DryMass; // Last stage doesn't get dropped
-                }
+                currentMass += Stages[i].FuelMass + Stages[i].DryMass;
             }
 
             return currentMass;

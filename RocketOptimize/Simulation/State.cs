@@ -14,5 +14,10 @@ namespace RocketOptimize.Simulation
         public Vector3d Drag;
         public Vector3d Thrust;
         public Atmosphere Atmosphere;
+        public double ReachedAltitude;
+        public bool IsDone;
+
+        public double MassFlow;
+        public double ExpendedMass;
     }
 }

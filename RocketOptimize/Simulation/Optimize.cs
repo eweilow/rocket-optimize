@@ -10,26 +10,32 @@ namespace RocketOptimize.Simulation
             return (x * x / (scale * scale));
         }
 
-        public static double ComputeScore(AscentSimulationGoal goal, LookAheadState lookAheadState, AscentSimulationControl guess)
+        public static double ComputeScore(AscentSimulationGoal goal, LookAheadState lookAheadState, State state, AscentSimulationControl guess)
         {
             const double distanceScaling = 10.0;
             double distanceFromApoapsisGoal = lookAheadState.Apoapsis / 1000.0 - goal.Apoapsis;
             double distanceFromPeriapsisGoal = lookAheadState.Periapsis / 1000.0 - goal.Periapsis;
+            double distanceFromReachedAltitudeGoal = state.ReachedAltitude / 1000.0 - goal.Periapsis;
+            double distanceFromAltitudeGoal = (state.Position.Length - Constants.EarthRadius) / 1000.0 - goal.Periapsis;
 
             return ErrorFunction(distanceFromApoapsisGoal, distanceScaling)
                     + ErrorFunction(distanceFromPeriapsisGoal, distanceScaling)
-                    + ErrorFunction(lookAheadState.Eccentricity, 0.5);
-                    //+ ErrorFunction((guess.ThrustDuration1 + guess.ThrustDuration2) - guess.ThrustCutoff, 1);
+                    + ErrorFunction(distanceFromReachedAltitudeGoal, distanceScaling)
+                    + ErrorFunction(distanceFromAltitudeGoal, distanceScaling);                    
+            //+ ErrorFunction((guess.ThrustDuration1 + guess.ThrustDuration2) - guess.ThrustCutoff, 1);
         }
 
         private static void Print(AscentSimulationGoal goal, LookAheadState lookAheadState, State state, AscentSimulationControl guess, double bestScore)
         {
-            Console.WriteLine("{0,1:F} {1,1:F}: g {2,1:F}, d {3,1:F} - score {4,3:F}/{5,3:F}",
+            Console.WriteLine("{0,1:F} {1,1:F}, {2,2:F}/{3,2:F}: g {4,1:F}, d {5,1:F}, mass left {6,2:F} kg - score {7,3:F}/{8,3:F}",
                 (lookAheadState.Periapsis) / 1000.0,
                 (lookAheadState.Apoapsis) / 1000.0,
+                (state.Position.Length - Constants.EarthRadius) / 1000.0,
+                state.ReachedAltitude / 1000.0,
                 state.LossesToGravity,
                 state.LossesToDrag,
-                ComputeScore(goal, lookAheadState, guess),
+                guess.Rocket.TotalFuelMass() - state.ExpendedMass,
+                ComputeScore(goal, lookAheadState, state, guess),
                 bestScore
             );
         }
@@ -42,7 +48,9 @@ namespace RocketOptimize.Simulation
         public double BestScore;
         public readonly State InitialState;
 
-        public AscentOptimization(AscentSimulationGoal goal, AscentSimulationControl initialGuess, State initialState, double timeStep, int microSteps)
+        public readonly double SurfaceVelocity;
+
+        public AscentOptimization(double surfaceVelocity, AscentSimulationGoal goal, AscentSimulationControl initialGuess, State initialState, double timeStep, int microSteps, double bestScore = -1)
         {
             Goal = goal;
             InitialGuess = initialGuess;
@@ -50,10 +58,11 @@ namespace RocketOptimize.Simulation
             InitialState = initialState;
             TimeStep = timeStep;
             MicroSteps = microSteps;
+            SurfaceVelocity = surfaceVelocity;
 
             LookAheadState lookAheadState;
             State state;
-            BestScore = Tasklet(BestGuess, 0, 0.0, false, out BestGuess, out lookAheadState, out state);
+            BestScore = bestScore >= 0 ? bestScore : Tasklet(BestGuess, 0, 0.0, false, out BestGuess, out lookAheadState, out state);
         }
 
         private Random _random = new Random();
@@ -64,16 +73,18 @@ namespace RocketOptimize.Simulation
         {
             control = new AscentSimulationControl()
             {
-                InitialVerticalTime = currentBestGuess.InitialVerticalTime + (perturbationScale * _random.NextDouble(2)),
+                InitialVerticalTime = Math.Max(5, currentBestGuess.InitialVerticalTime + (perturbationScale * _random.NextDouble(1))),
                 KickPitchTime = currentBestGuess.KickPitchTime + (perturbationScale * _random.NextDouble(4)),
-                KickPitchAngle = Math.Max(0, currentBestGuess.KickPitchAngle + (perturbationScale * _random.NextDouble(1))),
+                KickPitchAngle = currentBestGuess.KickPitchAngle, //Math.Max(0, currentBestGuess.KickPitchAngle + (perturbationScale * _random.NextDouble(1))),
                 StagingAngle = Math.Max(0, Math.Min(90, currentBestGuess.StagingAngle + (perturbationScale * _random.NextDouble(2)))),
-                Stage1Duration = currentBestGuess.Stage1Duration, // + (perturbationScale * _random.NextDouble(3)),
-                Stage2Duration = currentBestGuess.Stage2Duration, // + (perturbationScale * _random.NextDouble(3)),
-                Stage1InitialAcceleration = currentBestGuess.Stage1InitialAcceleration,
-                Stage1MaxAcceleration = currentBestGuess.Stage1MaxAcceleration,
-                Stage2InitialAcceleration = currentBestGuess.Stage2InitialAcceleration,
-                Stage2MaxAcceleration = currentBestGuess.Stage2MaxAcceleration
+                MaxAcceleration = Math.Max(0, currentBestGuess.MaxAcceleration + (perturbationScale * _random.NextDouble(0.1))),
+                Rocket = currentBestGuess.Rocket
+                //Stage1Duration = currentBestGuess.Stage1Duration, // + (perturbationScale * _random.NextDouble(3)),
+                //Stage2Duration = currentBestGuess.Stage2Duration, // + (perturbationScale * _random.NextDouble(3)),
+                //Stage1InitialAcceleration = currentBestGuess.Stage1InitialAcceleration,
+                //Stage1MaxAcceleration = currentBestGuess.Stage1MaxAcceleration,
+                //Stage2InitialAcceleration = currentBestGuess.Stage2InitialAcceleration,
+                //Stage2MaxAcceleration = currentBestGuess.Stage2MaxAcceleration
                 //InitialTurnDuration = currentBestGuess.InitialTurnDuration + (perturbationScale *  _random.NextDouble(0.2)),
                 //MaxThrust1 = currentBestGuess.MaxThrust1,
                 //MinThrust1 = currentBestGuess.MinThrust1,
@@ -87,13 +98,15 @@ namespace RocketOptimize.Simulation
                 //TurnDuration = Math.Max(0, currentBestGuess.TurnDuration + (perturbationScale * _random.NextDouble(1))),
             };
 
-            var simulation = new AscentSimulation(Goal, control, InitialState);
-            while (simulation.CurrentState.Time < control.Stage1Duration + control.Stage2Duration)
+            var simulation = new AscentSimulation(Goal, control, InitialState, SurfaceVelocity);
+            double totalFuelMass = control.Rocket.TotalFuelMass();
+            while (!simulation.CurrentState.IsDone)
             {
+                //Console.WriteLine("{0} {1}", simulation.CurrentState.ExpendedMass - totalFuelMass, simulation.CurrentState.Time);
                 simulation.FastTick(TimeStep, MicroSteps);
                 if (simulation.LookAheadState.Apoapsis / 1000.0 > (Goal.Apoapsis + 15) || simulation.LookAheadState.Periapsis / 1000.0 > (Goal.Periapsis + 15))
                 {
-                    control.Stage2Duration = Math.Max(0, simulation.CurrentState.Time - control.Stage1Duration);
+                    //control.Stage2Duration = Math.Max(0, simulation.CurrentState.Time - control.Stage1Duration);
                     break;
                 }
             }
@@ -103,7 +116,7 @@ namespace RocketOptimize.Simulation
             }
             lookAheadState = simulation.LookAheadState;
             state = simulation.CurrentState;
-            return ComputeScore(Goal, simulation.LookAheadState, control);
+            return ComputeScore(Goal, simulation.LookAheadState, state, control);
         }
 
         public double Run(double perturbationScale = 1.0)
@@ -130,7 +143,6 @@ namespace RocketOptimize.Simulation
                     BestGuess = tasks[i].Result.Item2;
                     Print(Goal, tasks[i].Result.Item3, tasks[i].Result.Item4, BestGuess, BestScore);
                     Console.WriteLine(BestGuess);
-
                 }
             }
 
