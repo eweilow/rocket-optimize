@@ -78,7 +78,7 @@ Furthermore, a rocket typically has an aerodynamic shell (fairing) that is deplo
     $m_i$ & Mass of fairing \\
     $h_{deployment,i}$ & Altitude of deployment
   \end{tabular}
-  \end{center}
+\end{center}
 such that each fairing $i=0,1,2...$ can be written
 $$
 f_i = (m_i, h_{deployment,i})
@@ -339,6 +339,135 @@ If $\eta = 0$, the simulation ends in orbit.
 
 \section{Results}
 
+\subsection{Orbit insertion accuracy}
+\begin{center}
+  \begin{tabular}{ r | r  | l  l  }
+     &   &  Achieved  \\
+    Surface motion & Goal altitude & Perigee & Apogee \\
+    \hline
+    0 m/s & 170 km & 168.21 km & 169.76 km \\
+    460 m/s & 170 km & 168.17 km & 169.49 km \\
+    \hline
+    0 m/s & 220 km & 218.87 km & 219.39 km \\
+    460 m/s & 220 km  & 218.93 km & 223.90 km \\
+    \hline
+    0 m/s & 275 km & 274.85 km & 274.88 km \\
+    460 m/s & 275 km & 273.93 km & 274.38 km
+  \end{tabular}
+\end{center}
+
+\subsection{Propellant consumption}
+\begin{center}
+  \begin{tabular}{ r | r  | l  l  }
+     &   &   Propellant   \\
+    Surface motion &  Goal altitude & Consumed & Remaining \\
+    \hline
+    0 m/s & 170 km & 511909 kg & 6490 kg \\
+    460 m/s & 170 km & 510103 kg & 8297 kg \\
+    \hline
+    0 m/s & 220 km & 516129 kg & 2271 kg \\
+    460 m/s & 220 km  & 512725 kg & 5675 kg \\
+    \hline
+    0 m/s & 275 km & 516911 kg & 1489 kg \\
+    460 m/s & 275 km & 515460 kg & 2940 kg
+  \end{tabular}
+\end{center}
+
+\subsection{Equatorial vs polar}
+\begin{center}
+  \begin{tabular}{ r | l  l  }
+     &   Propellant   \\
+    Goal altitude & Consumed & Remaining \\
+    \hline
+    170 km & 99.64\% & 127.8 \% \\
+    220 km & 99.34\% & 250.0 \% \\
+    275 km & 99.72\% & 197.4 \%
+  \end{tabular}
+\end{center}
+
+
 \section{Analysis}
+
+By the results achieved, it's clear that orbital launch from the equator is better than launch from the poles. 
+One must be careful just looking at the results however, as one might say that it is not by a huge margin that equatorial launch is better, but that's where the tyranny of the rocket equation comes into play.
+If our payload goal is to place 10000 kg into a 220 km orbit, then reducing the fuel consumption by 3500 kg allows a much smaller first stage, as the rocket equation tends toward exponential changes.
+
+It is however interesting that the fuel consumption is the most equal for a target orbit of 170 km. Without knowing for certain what the result should be, the way that the trajectory is created and optimized will 
+play a role. The \textit{very} simple guidance algorithm is definitely just scraping the surface of what is possible.
+
+\newpage
+
+\appendix
+
+\section{Raw data}
+\subsection{170 km orbit}
+\begin{center}
+  \begin{tabular}{ r | l   l | l   l }
+     & Goal  &  & Achieved &  \\
+    Surface motion & Perigee & Apogee & Perigee & Apogee \\
+    \hline
+    0 m/s & 170 km & 170 km & 168.21 km & 169.76 km \\
+    460 m/s & 170 km & 170 km & 168.17 km & 169.49 km
+  \end{tabular}
+\end{center}
+
+\begin{center}
+  \begin{tabular}{ r   l   l l }
+     &  & Propellant &  \\
+    Surface motion & Payload & Remaining & Consumed \\
+    \hline
+    0 m/s & 10000 kg & 6490.91 kg  & 511909 kg \\
+    460 m/s & 10000 kg & 8297.18 kg  & 510103 kg \\
+    \hline
+      &   & 127.82\%  & 99.64\% \\
+  \end{tabular}
+\end{center}
+
+\subsection{220 km orbit}
+\begin{center}
+  \begin{tabular}{ r | l   l | l   l }
+     & Goal  &  & Achieved &  \\
+    Surface motion & Perigee & Apogee & Perigee & Apogee \\
+    \hline
+    0 m/s & 220 km & 220 km & 218.87 km & 219.39 km \\
+    460 m/s & 220 km & 220 km & 218.93 km & 223.90 km
+  \end{tabular}
+\end{center}
+
+\begin{center}
+  \begin{tabular}{ r   l   l l }
+     &  & Propellant &  \\
+    Surface motion & Payload & Remaining & Consumed \\
+    \hline
+    0 m/s & 10000 kg & 2271.10 kg  & 516129 kg \\
+    460 m/s & 10000 kg & 5675.03 kg  & 512725 kg \\
+    \hline
+      &   & 250\%  & 99.34\% \\
+  \end{tabular}
+\end{center}
+
+\subsection{275 km orbit}
+\begin{center}
+  \begin{tabular}{ r | l   l | l   l }
+     & Goal  &  & Achieved &  \\
+    Surface motion & Perigee & Apogee & Perigee & Apogee \\
+    \hline
+    0 m/s & 275 km & 275 km & 274.85 km & 274.88 km \\
+    460 m/s & 275 km & 275 km & 273.93 km & 274.38 km
+  \end{tabular}
+\end{center}
+
+\begin{center}
+  \begin{tabular}{ r   l   l l }
+     &  & Propellant &  \\
+    Surface motion & Payload & Remaining & Consumed \\
+    \hline
+    0 m/s & 10000 kg & 1489.10 kg  & 516911 kg \\
+    460 m/s & 10000 kg & 2939.79 kg  & 515460 kg \\
+    \hline
+      &   & 197.4\%  & 99.72\% \\
+  \end{tabular}
+\end{center}
+
 
 \end{document}
