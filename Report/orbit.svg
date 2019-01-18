@@ -1,0 +1,24 @@
+<svg 
+  version="1.1"
+  baseProfile="full"
+  width="200" height="200"
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 200 200"
+>
+  <svg width="200" height="200" viewBox="10 10 190 190" transform="rotate(0, 0, 0)">
+    <ellipse cx="100" cy="100" rx="50" ry="50" fill="none" stroke-width="1" stroke="black" />
+    <ellipse cx="100" cy="100" rx="60" ry="60" fill="none" stroke-width="2" stroke="black" />
+    <line x1="154.4" y1="125.4" x2="137.5" y2="161.6" stroke-width="4" stroke="green" />
+    <line x1="154.4" y1="125.4" x2="190.6" y2="142.3" stroke-width="4" stroke="red" />
+    <text alignment-baseline="middle" text-anchor="middle" x="133.2" y="170.7">r̂</text>
+    <text alignment-baseline="middle" text-anchor="middle" x="199.7" y="146.5">r̂</text>
+    <circle cx="154.4" cy="125.4" r="6" fill="white" stroke-width="2" stroke="white" />
+    <circle cx="154.4" cy="125.4" r="4" fill="white" stroke-width="2" stroke="black" />
+    <circle cx="154.4" cy="125.4" r="1" fill="black" />
+  </svg>
+  <style>
+    svg {
+      transform: rotateX(0);
+    }
+  </style>
+</svg>

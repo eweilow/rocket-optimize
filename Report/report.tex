@@ -1,0 +1,58 @@
+\documentclass[11pt]{article}
+\usepackage[cm]{fullpage}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[section]{placeins}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{multicol}
+
+\setlength{\columnsep}{1cm}
+
+\title{%
+  Optimizing the ascent trajectory for an orbital class launch vehicle \\
+  \Large Final project in SI1336\\
+}
+\author{Erik Weilow}
+
+\include{./commands.text}
+
+\begin{document}
+\maketitle
+\newpage
+
+\section{Parameters}
+
+\section{The model}
+To simulate the ascent of the rocket, a model of the physics involved is required.
+In this model, it assumed that only main three forces are acting on the rocket: its thrust $T$, aerodynamic drag $D$ and gravity $G$.
+All three of these forces need approximations in order to run the simulation with reasonable result.
+
+
+\subsection{Coordinate system}
+Let $\hat{r}$ denote the normalized radial vector.
+Let furthermore $\hat{z}$ be oriented according to the right-hand rule relative to the direction of travel.
+Then, the tangential vector is $\hat{t} = \hat{r} \times \hat{z}$.
+
+\subsection{State vectors}
+
+\subsection{Gravity - G}
+Gravity is modelled based on the Newtonian formulation, resulting in a force
+$$
+\vec{G}(r) = -\frac{\mu}{r^2} \hat{r} 
+$$
+where r is the distance to the center of Earth from the rocket, and $\mu \approx 3.986\cdot10^{14} m^3 s^{−2}$ is the standard gravitational parameter for Earth.
+
+\subsection{Aerodynamic drag - D}
+To model aerodynamic drag, it is assumed that the atmosphere moves at a velocity, independent of radius
+$$
+\vec{v}_{atm} (\vec{r}) = v_{surf} \cdot \hat{t} (\vec{r})
+$$
+This allows the definiton of the wind-relative velocity
+$$
+\vec{v}_{atm,rel} (\vec{r}, t) = \vec{v} (t) - \vec{v}_{atm} (\vec{r})
+$$
+\subsection{Thrust - D}
+
+\end{document}
