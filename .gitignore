@@ -240,3 +240,7 @@ _Pvt_Extensions
 *.out
 *.synctex.gz
 Report/__latexindent_temp\.tex
+
+Report/report\.fdb_latexmk
+
+Report/report\.fls

@@ -83,21 +83,21 @@ namespace RocketOptimize.Simulation
 
             double angularVelocity = WindSurfaceVelocity / Constants.EarthRadius;
 
-            Vector3d windVelocityVector = _horizontal * angularVelocity * _currentRadius;
+            Vector3d windVelocityVector = _horizontal * WindSurfaceVelocity; // angularVelocity * _currentRadius;
             Vector3d windRelativeVelocity = state.Velocity - windVelocityVector;
             double velocity = windRelativeVelocity.Length;
             double velocitySquared = velocity * velocity;
 
-            double MachNumber = velocity / 1000.0;
-            double CoefficientOfDrag;
-            if (MachNumber < 1)
-            {
-                CoefficientOfDrag = 0.3 + MachNumber;
-            }
-            else
-            {
-                CoefficientOfDrag = 1.3 * Math.Exp(-MachNumber);
-            }
+            //double MachNumber = velocity / 1000.0;
+            double CoefficientOfDrag = 0.2;
+            //if (MachNumber < 1)
+            //{
+            //    CoefficientOfDrag = 0.3 + MachNumber;
+            //}
+            //else
+            //{
+            //    CoefficientOfDrag = 1.3 * Math.Exp(-MachNumber);
+            //}
 
             const double Radius = 5 / 2;
             const double Area = Radius * Radius * Math.PI;

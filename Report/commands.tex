@@ -47,3 +47,7 @@
   \end{minipage}
 \end{figure}
 }
+
+\let\oldabs\abs % Store original \abs as \oldabs
+\let\abs\undefined % "Undefine" \abs
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}

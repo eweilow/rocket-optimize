@@ -1,58 +1,344 @@
 \documentclass[11pt]{article}
-\usepackage[cm]{fullpage}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage[section]{placeins}
 \usepackage{float}
 \usepackage{amsmath}
-\usepackage{multicol}
+\usepackage{mathtools}
 
 \setlength{\columnsep}{1cm}
 
-\title{%
-  Optimizing the ascent trajectory for an orbital class launch vehicle \\
-  \Large Final project in SI1336\\
-}
-\author{Erik Weilow}
 
 \include{./commands.text}
 
 \begin{document}
-\maketitle
+\begin{titlepage}
+  \centering
+  \vfill
+  \vfill
+  \includegraphics[width=0.5\textwidth]{./220km.png}
+  \vskip3cm
+  {\Large
+  \textbf{Optimizing the ascent trajectory for an orbital class launch vehicle}\\
+  \vskip0.25cm
+  Final project in SI1336\\
+      \vskip1cm
+      Erik Weilow\\
+      \vskip0.5cm
+      \today\\
+  }    
+  \vfill
+  \vfill
+\end{titlepage}
 \newpage
 
-\section{Parameters}
+\section{Project summary}
+This project formulates an approximate model of the conditions encountered for an orbital class launch vehicle during ascent into Low-Earth orbit,
+as well as a strategy for trajectory optimization for polar and equatorial launches.
 
-\section{The model}
+The project is split into four major parts: the equations describing the rocket, the physics model, the ascent guidance algorithm as well as the optimization of parameters.
+
+\section{Intrinsic equations describing the rocket}
+\subsection{Input parameters}
+The state of the rocket can be described with position, velocity and expended mass ($m_e$)
+$$
+S = (\vec{r}, \vec{v}, m) = (x, y, z, v_x, v_y, v_z, m_e)
+$$
+where $m_e$ is the integral of exhaust mass flow (propulsion) over time
+$$
+m_e(t) = \int_0^t \dot{m}(S,t) dt
+$$
+
+The reason for including expended mass in the model is that it lets us derive the currently active stage, 
+as well as the necessary variables of the rocket as a function of used propellant. This is done by considering each state as collection of parameters
+\begin{center}
+\begin{tabular}{ r  | l  }
+  Parameter & Description \\
+  \hline
+  $m_{prop,i}$ & Propellant mass of stage \\
+  $m_{dry,i}$ & Dry mass of stage (without propellant) \\
+  $F_{sl,i}$ & Thrust at sea level pressure \\
+  $F_{vac,i}$ & Thrust in vacuum pressure \\
+  $I_{sp,sl,i}$ & Specific impulse at sea level \\
+  $I_{sp,vac,i}$ & Specific impulse in vacuum pressure
+\end{tabular}
+\end{center}
+
+such that each stage $i=0,1,2...$ can be written
+$$
+s_i = (m_{prop,i}, m_{dry,i}, F_{sl,i}, F_{vac,i}, I_{sp,sl,i}, I_{sp,vac,i})
+$$
+
+Furthermore, a rocket typically has an aerodynamic shell (fairing) that is deployed around the edge of space (100km). This is modelled simply by the parameters
+\begin{center}
+  \begin{tabular}{ r  | l  }
+    Parameter & Description \\
+    \hline
+    $m_i$ & Mass of fairing \\
+    $h_{deployment,i}$ & Altitude of deployment
+  \end{tabular}
+  \end{center}
+such that each fairing $i=0,1,2...$ can be written
+$$
+f_i = (m_i, h_{deployment,i})
+$$
+
+Lastly, the payload of the rocket is modelled as a mass $m_{payload}$.
+
+\subsection{Derived parameters}
+To run simulations of defined by the parameters in the previous section, 
+we need to derive the current mass of the entire rocket. This is not as simple as subtracting $m_e$ from the initial mass, as we want to model staging.
+Instead consider parameters driven by the currently active stage $s_{active}$.
+
+\subsubsection{Mass}
+
+If the propellant of stages before $s_i$ is
+$$
+m'_{prop,i} = \sum_{j=0}^{i-1} m_{prop,j}
+$$
+then the currently active stage fulfill the criteria
+$$
+m'_{prop,active} < m_e(t) < m'_{prop,active} + m_{prop,active}
+$$
+
+As we are only considering a two stage launch vehicle, the active stage can be defined by
+$$
+s_{active} = \begin{cases} 
+  s_0 & : m_e < m_{prop,0} \\
+  s_1 & : 0 < m_e - m_{prop,0} < m_{prop,1}
+\end{cases}
+$$
+
+If the mass of stages after the stage $s_i$ is
+$$
+m'_{stages,i} = \sum_{j=i+1} m_{prop,j} + m_{dry,j}
+$$
+This defines the current mass of stages, when $s_{i}$ is active, as
+$$
+m_{stagemass,i} = \left( m_e(t) - m'_{prop,i} \right) + m_{dry,i} + m'_{stages,i}
+$$
+
+If $h_{max}$ is the maximum altitude reached up until time $t$, then the mass of fairings currently on the rocket can be described by the sum
+$$
+m_{fairings}(h_{max}) = \sum_{i=0} m_i (1 - H(h_{max} - h_{deployment,i}))
+$$
+
+Thus, the total instantaneous mass for an active stage $s_i$ is
+$$
+m_i = m_{stagemass,i} + m_{fairings}(h_{max}) + m_{payload}
+$$
+
+\subsubsection{Thrust}
+
+Since the thrust of a rocket propulsion system is linear in the pressure difference between the exhaust and surrounding pressure, 
+it is assumed in our model that the thrust $F$ changes linearly between $F_{sea}$ and $F_{vacuum}$ with pressure $p$.
+%
+% https://www.grc.nasa.gov/www/k-12/rocket/thrsteq.html
+%
+
+For a given active stage $s_i$, if pressure is written as a function of altitude $h$, thrust can be written as 
+$$
+F_i(p(h)) = F_{sl,i} + \left( F_{sl,i} - F_{vac,i} \right) \frac{p(h)}{p(0)}
+$$
+
+This only holds if the stage has remaining fuel ($m_e - m_{prop,i} > 0$) 
+otherwise 
+$$
+F_i(p(h)) = 0
+$$
+
+\subsubsection{Mass flow}
+% 
+% https://www.grc.nasa.gov/www/k-12/airplane/specimp.html 
+%
+Mass flow is necessary to find $m_e(t)$, and is given in a general form by
+$$
+\dot{m} = \frac{F}{ g_0 I_{sp}}
+$$
+
+If we assume mass flow to be constant through the propulsion system, then $I_{sp}$ must share the same linear behaviour in pressure as thrust does.
+Thus, for an active stage $s_i$, let
+$$
+I_{sp,i}(p(h)) = I_{sp,sl,i} + \left( I_{sp,sl,i} - I_{sp,vac,i} \right) \frac{p(h)}{p(0)}
+$$
+
+This gives the mass flow
+$$
+\dot{m}_i(p(h)) = \frac{F_i(p(h))}{ g_0 I_{sp,i}(p(h))}
+$$
+
+Finally, to tie the equations together, we define 
+$$
+m(m_e) = m_i, \quad 
+F(m_e, p(h)) = F_i(p(h)), \quad 
+\dot{m}(m_e, p(h)) = \dot{m}_i(p(h)) \quad 
+$$
+where the active stage $s_i$ is derived from a given $m_e$.
+
+\section{Physics model}
 To simulate the ascent of the rocket, a model of the physics involved is required.
-In this model, it assumed that only main three forces are acting on the rocket: its thrust $T$, aerodynamic drag $D$ and gravity $G$.
-All three of these forces need approximations in order to run the simulation with reasonable result.
-
 
 \subsection{Coordinate system}
-Let $\hat{r}$ denote the normalized radial vector.
-Let furthermore $\hat{z}$ be oriented according to the right-hand rule relative to the direction of travel.
-Then, the tangential vector is $\hat{t} = \hat{r} \times \hat{z}$.
+The simulation uses two coordinate systems, one cartesian and one kinematic.
+The cartesian system $\hat{x}, \hat{y}, \hat{z}$ is originated in the starting location and oriented such that
+$\hat{x}$ points towards the wanted direction of orbit,
+$\hat{y}$ points radially up, and $\hat{z} = \hat{x} \times \hat{y}$.
 
-\subsection{State vectors}
+The kinematic system $\hat{r}, \hat{t}, \hat{z}$ follows the rocket and is oriented such that 
+$\hat{r}$ is the normalized radial vector, $\hat{z}$ is the same as in the cartesian system, 
+and the tangential vector is $\hat{t} = \hat{r} \times \hat{z}$. In a circular orbit, $\hat{t}$ is parallel to velocity $\vec{v}$.
 
-\subsection{Gravity - G}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.45\textwidth]{./orbit.png}
+  \caption{The instantaneous coordinates}
+\end{figure}
+
+\subsection{Atmosphere}
+%
+% Here we write a bit about the american standard atmosphere model
+%
+Produces $\rho(r)$
+
+\subsection{Forces}
+In this model, it assumed that three forces are acting on the rocket: thrust $T$, aerodynamic drag $D$ and gravity $G$.
+
+\subsubsection{Gravity - G}
 Gravity is modelled based on the Newtonian formulation, resulting in a force
 $$
-\vec{G}(r) = -\frac{\mu}{r^2} \hat{r} 
+\vec{G}(\vec{r}, m_e) = -m(m_e) \frac{\mu}{r^2} \hat{r} 
 $$
-where r is the distance to the center of Earth from the rocket, and $\mu \approx 3.986\cdot10^{14} m^3 s^{−2}$ is the standard gravitational parameter for Earth.
+where r is the distance to the center of Earth from the rocket, and $\mu \approx 3.986\cdot10^{14} m^3 s^{−2}$ is the standard gravitational parameter.
 
-\subsection{Aerodynamic drag - D}
-To model aerodynamic drag, it is assumed that the atmosphere moves at a velocity, independent of radius
+\subsubsection{Aerodynamic drag - D}
+% 
+% Include Drag equation
+% Include atmospheric model incl. reference
+% Include typical C_d
+%
+To model aerodynamic drag it first is assumed that the atmosphere, independently of radius, moves at a velocity:
 $$
-\vec{v}_{atm} (\vec{r}) = v_{surf} \cdot \hat{t} (\vec{r})
+\vec{v}_{atm} (\vec{r}) = v_{surf} \cdot \hat{t}
 $$
-This allows the definiton of the wind-relative velocity
+This allows the definition of the wind-relative velocity
 $$
-\vec{v}_{atm,rel} (\vec{r}, t) = \vec{v} (t) - \vec{v}_{atm} (\vec{r})
+\vec{v}_{atm,rel} (\vec{r}, \vec{v}) = \vec{v} - \vec{v}_{atm} (\vec{r})
 $$
-\subsection{Thrust - D}
+
+%
+% TYPICAL VALUE REFERENCE FROM OTHER PEOPLE THANKS
+%
+Under the assumption that the the drag equation holds for the entirety of the ascent, then
+$$
+\vec{D}(\vec{r}, \vec{v}, m_e) = - \frac{ m(m_e) \cdot  C_d  \cdot A \cdot \rho(r) }{2} {\left| \vec{v}_{atm,rel} (\vec{r}, \vec{v}) \right|}^2 \hat{v}
+$$
+% coefficient of drag $C_d = 0.2$, 
+\subsubsection{Thrust - T}
+
+%
+% stuff about mass flow
+%
+
+To abstract the guidance algorithms from the physics model, it is assumed that guidance controls throttle as
+$$
+\eta = \eta(\vec{r}, \vec{v}, m_e, t)\in[0,1]
+$$
+and angle of thrust (AoT) from the vertical $\hat{r}$ as
+$$
+\theta = \theta(\vec{r}, \vec{v}, m_e, t)\in\left[0,\pi\right]
+$$
+
+Throttle and AoT interact such that 
+$$
+\vec{T}(\vec{r}, \vec{v}, m_e, t) = \left( \cos \theta \hat{r} + \sin \theta \hat{t} \right) \cdot F(m_e, P) \cdot \eta
+$$
+
+\subsection{Differential equation}
+The combination of gravity, aerodynamic drag, and thrust give the equation
+$$
+\vec{a}(\vec{r}, \vec{v}, m_e) = \frac{1}{m_i} \left( G(\vec{r}, m_e) + D(\vec{r}, \vec{v}, m_e) + T(\vec{r}, \vec{v}, m_e, t) \right)
+$$
+
+\section{Ascent guidance}
+The ascent guidance implemented in the simulation can be categorized into five phases:
+\begin{itemize}
+  \item Liftoff
+  \item Kickpitch
+  \item Gravity turn
+  \item Orbital insertion
+  \item Terminal guidance
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{./plots/angleFromVertical.png}
+  \caption{Typical thrust angle from vertical (intentionally without units)}
+\end{figure}
+
+\subsection{Liftoff ($0 < t < t_{vertical}$)}
+During this phase, the trajectory is entirely vertical - $\theta = 0$ and $\eta = 1$.
+
+\subsection{Kickpitch ($t_{vertical} < t < t_{kickpitch}$)}
+During this phase, the trajectory starts pitching towards the horizon slightly.
+The angle $\theta$ is linearly interpolated between 0 and the defining parameter $\theta_{kickpitch} = 4^{\circ}$ according to
+$$
+\theta(t) = \theta_{kickpitch} \frac{t - t_{vertical}}{t_{kickpitch} - t_{vertical}}
+$$
+
+\subsection{Gravity turn ($\dot{m} t_{kickpitch} < m_e(t) < m_{prop,0}$)}
+During the time between the end of kickpitch and the time of staging (when the expended mass is equal to the propellant in the first stage),
+the angle $\theta$ is linearly interpolated between $\theta_{kickpitch}$ and the defining parameter $\theta_{staging}$ according to
+$$
+\theta(t) = \theta_{kickpitch} + \left( \theta_{staging} - \theta_{kickpitch} \right) \frac{m_e(t) - \dot{m} t_{kickpitch}}{m_{prop,0} - \dot{m} t_{kickpitch}}
+$$
+
+\subsection{Orbital insertion ($m_{prop,0} < m_e(t) < m_{prop,0} + m_{prop,1}$)}
+This phase lasts until terminal guidance is triggered. The angle $\theta$ is interpolated from $\theta_{staging}$ to 0 according to
+$$
+\theta(t) = \theta_{staging} \left( 1 - \frac{m_e(t) - m_{prop,0}}{m_{prop,1}} \right)
+$$
+
+\subsection{Terminal guidance}
+Terminal guidance is necessary to achieve a circular orbit within this simulation and previously mentioned ascent guidance parameters.
+It consists of a PI-controller that attempts to cancel out any vertical velocity.
+
+The conditions for entering terminal guidance is:
+\begin{itemize}
+  \item $h > g_{ap} - 55$
+  \item OR:
+  \item $h > 100$ and $\left| \vec{v} \cdot \hat{r} \right| < 50$
+\end{itemize}
+
+Within terminal guidance, $\theta$ is controlled with the regulator 
+$$
+\theta = 5 \cdot e(t) + 5 \int_{t_{triggered}}^t e(t') dt'
+$$
+where $t_{triggered}$ is the time at which terminal guidance was triggered, and
+$$
+e(t) = \vec{v} \cdot \hat{r}
+$$
+
+Furthermore, throttle is controlled by
+$$
+\eta = \begin{cases}
+0 & : \quad r_{pe} > g_{pe} - 2 km, \quad g_{ap} - 2 km < r_{ap} < g_{ap} + 3 km \\
+0 & : \quad r_{pe} > g_{pe} - 2 km, \left| \vec{v} \cdot \hat{r} \right| < 15 km \\
+0.05 & : \quad r_{pe} > g_{pe} - 10 km \\
+0.25 & : \quad r_{pe} > 0 km \\
+0.5 & : \quad r_{pe} > -100 km \\
+1 & :  \quad otherwise
+\end{cases}
+$$
+
+If $\eta = 0$, the simulation ends in orbit.
+
+\section{Integration}
+
+\section{Optimization of parameters}
+
+\section{Results}
+
+\section{Analysis}
 
 \end{document}
