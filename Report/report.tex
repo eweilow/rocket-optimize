@@ -421,14 +421,14 @@ We'll start by looking at how well the guidance algorithm worked. Three goal orb
      &   &  Achieved  \\
     Surface motion & Goal altitude & Perigee & Apogee \\
     \hline
-    0 m/s & 170 km & 168.21 km & 169.76 km \\
-    460 m/s & 170 km & 168.17 km & 169.49 km \\
+    0 m/s & 170 km & 168.45 km & 169.52 km \\
+    460 m/s & 170 km & 168.03 km & 170.26 km \\
     \hline
-    0 m/s & 220 km & 218.87 km & 219.39 km \\
-    460 m/s & 220 km  & 218.93 km & 223.90 km \\
+    0 m/s & 220 km & 218.49 km & 220.77 km \\
+    460 m/s & 220 km  & 218.56 km & 219.21 km \\
     \hline
-    0 m/s & 275 km & 274.85 km & 274.88 km \\
-    460 m/s & 275 km & 273.93 km & 274.38 km
+    0 m/s & 275 km & 274.41 km & 275.25 km \\
+    460 m/s & 275 km & 275.30 km & 275.78 km
   \end{tabular}
 \end{center}
 It's clear that the algorithm works astonishingly well, with insertions just a few km in difference from the goal. It also works well for both equatorial and polar launch.
@@ -439,14 +439,14 @@ It's clear that the algorithm works astonishingly well, with insertions just a f
      &   &   Propellant   \\
     Surface motion &  Goal altitude & Consumed & Remaining \\
     \hline
-    0 m/s & 170 km & 511909 kg & 6490 kg \\
-    460 m/s & 170 km & 510103 kg & 8297 kg \\
+    0 m/s & 170 km & 512414 kg & 5986 kg \\
+    460 m/s & 170 km & 509838 kg & 8562 kg \\
     \hline
-    0 m/s & 220 km & 516129 kg & 2271 kg \\
-    460 m/s & 220 km  & 512725 kg & 5675 kg \\
+    0 m/s & 220 km & 513645 kg & 4755 kg \\
+    460 m/s & 220 km  & 511933 kg & 6467 kg \\
     \hline
-    0 m/s & 275 km & 516911 kg & 1489 kg \\
-    460 m/s & 275 km & 515460 kg & 2940 kg
+    0 m/s & 275 km & 513562 kg & 4838 kg \\
+    460 m/s & 275 km & 512208 kg & 6192 kg
   \end{tabular}
 \end{center}
 The propellant consumption was highest for the highest orbit goal, a reasonable expectation, but the difference between equatorial and polar launch was the lowest for the 220 km orbit goal.
@@ -456,9 +456,9 @@ This is further shown in the following table, comparing propellant usage for equ
      &   Propellant   \\
     Goal altitude & Consumed & Remaining \\
     \hline
-    170 km & 99.64\% & 127.8 \% \\
-    220 km & 99.34\% & 250.0 \% \\
-    275 km & 99.72\% & 197.4 \%
+    170 km & 99.40\% & 143 \% \\
+    220 km & 99.67\% & 136 \% \\
+    275 km & 99.74\% & 128 \%
   \end{tabular}
 \end{center}
 

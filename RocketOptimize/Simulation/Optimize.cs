@@ -25,7 +25,7 @@ namespace RocketOptimize.Simulation
                     + ErrorFunction(distanceFromPeriapsisGoal, distanceScaling)
                     + ErrorFunction(distanceFromReachedAltitudeGoal, distanceScaling)
                     + ErrorFunction(distanceFromAltitudeGoal, distanceScaling)
-                    + fuelLeft;
+                    + fuelLeft*5;
             //+ ErrorFunction((guess.ThrustDuration1 + guess.ThrustDuration2) - guess.ThrustCutoff, 1);
         }
 

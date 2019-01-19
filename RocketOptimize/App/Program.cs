@@ -91,7 +91,7 @@ namespace RocketOptimize.App
                 MaxAcceleration = 54.984388588776
             };
 
-            var initialState = SimulationRenderer.CreateInitialState(5.0, Math.PI / 2);
+            var initialState = SimulationRenderer.CreateInitialState(1, Math.PI / 2);
 #if ROTATING_PLANET
             initialState.Velocity.X += Constants.EarthSurfaceVelocity;
 #endif
@@ -101,10 +101,10 @@ namespace RocketOptimize.App
             {
                 (10, 1.0, 30.0, 10000),
                 (5, 1.0, 15.0, 10000),
-                (5, 0.5, 4.0, 10000),
-                (2, 0.5, 2.0, 10000),
-                (1, 0.2, 1.0, 10000),
-                (0.5, 0.1, 0.5, 10000),
+                (5, 0.5, 8.0, 10000),
+                (2, 0.5, 4.0, 10000),
+                (1, 0.2, 2.0, 10000),
+                (0.2, 0.1, 1, 1000),
                 //(0.1, 0.1, 0.5, 10000),
                 //(0.1, 0.01, 0.5, 10000),
                 //(0.1, 0.001, 0.1, 10000),
