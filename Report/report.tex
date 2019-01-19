@@ -8,6 +8,7 @@
 \usepackage{mathtools}
 \usepackage{changepage}  
 \usepackage{apacite}
+\usepackage{footmisc}
 
 \bibliographystyle{apacite}
 \setlength{\columnsep}{1cm}
@@ -45,7 +46,8 @@
 The goal of this project is to compare the propellant consumption for the launch of a multi-stage orbital class launch vehicle into low Earth orbit, from an equatorial and a polar launch site.
 To do this, the project formulates an approximate model of the conditions encountered for the launch vehicle during ascent as well as a simple control algorithm.
 To be able to draw conclusions from the results gained, the control algorithm must be optimized. 
-This will be done using a randomized optimization algorithm.
+This will be done using a randomized optimization algorithm, optimizing the ascent to target an apoapsis $g_{ap}$ and a periapsis $g_{pe}$, with a maximum acceleration of $a_{max}$. 
+
 The project is thus split into four major parts: the equations describing the state of the rocket, the physics model, the ascent guidance algorithm as well as the optimization of control parameters.
 
 \section{Equations of the rocket}
@@ -88,7 +90,7 @@ Furthermore, a rocket typically has an aerodynamic shell (fairing) that is deplo
   \begin{tabular}{ r  | l  }
     Parameter & Description \\
     \hline
-    $m_i$ & Mass of fairing \\
+    $m_{fairing,i}$ & Mass of fairing \\
     $h_{deployment,i}$ & Altitude of deployment
   \end{tabular}
 \end{center}
@@ -144,7 +146,7 @@ $$
 
 If $h_{max}$ is the maximum altitude reached up until time $t$, then the mass of fairings currently on the rocket can be described by the sum
 $$
-m_{fairings}(h_{max}) = \sum_{i=0} m_i (1 - H(h_{max} - h_{deployment,i}))
+m_{fairings}(h_{max}) = \sum_{i=0} m_{fairing,i} (1 - H(h_{max} - h_{deployment,i}))
 $$
 
 Thus, the total instantaneous mass for an active stage $s_i$ is
@@ -254,9 +256,9 @@ In this model, it assumed that three forces are acting on the rocket: thrust $T$
 \subsubsection{Gravity - G}
 Gravity is modelled based on the Newtonian formulation, resulting in a force
 $$
-\vec{G}(\vec{r}, m_e, t) = -m(m_e, (t)) \frac{\mu}{r^2} \hat{r} 
+\vec{G}(\vec{r}, m_e, t) = -m(m_e, h_{max}(t)) \frac{\mu}{r^2} \hat{r} 
 $$
-where r is the distance to the center of Earth from the rocket, and $\mu \approx 3.986\cdot10^{14} m^3 s^{−2}$ is the standard gravitational parameter.
+where r is the distance to the center of Earth from the rocket, and $\mu = GM \approx 3.986\cdot10^{14} m^3 s^{−2}$ is the standard gravitational parameter.
 
 \subsubsection{Aerodynamic drag - D} \label{sec:drag}
 
@@ -267,7 +269,7 @@ $$
 
 Under the assumption that the the drag equation holds for the entirety of the ascent, then drag becomes
 $$
-\vec{D}(\vec{r}, \vec{v}, m_e, t) = - \frac{ m(m_e, (t)) \cdot  c_d  \cdot A \cdot \rho(h(\vec{r})) }{2} {\left| \vec{v}_{atm,rel} (\vec{r}, \vec{v}) \right|}^2 \hat{v}
+\vec{D}(\vec{r}, \vec{v}, m_e, t) = - \frac{ m(m_e, h_{max}(t)) \cdot  c_d  \cdot A \cdot \rho(h(\vec{r})) }{2} {\left| \vec{v}_{atm,rel} (\vec{r}, \vec{v}) \right|}^2 \hat{v}
 $$
 where $A$ and $c_d$ are parameters given in section~\ref{sec:rocketparams}.
 % coefficient of drag $C_d = 0.2$, 
@@ -287,10 +289,54 @@ $$
 \vec{T}(\vec{r}, \vec{v}, m_e, t) = \left( \cos ( \theta ) \cdot\hat{r} + \sin ( \theta ) \cdot\hat{t} \right) \cdot F(m_e, P(h(\vec{r}))) \cdot \eta
 $$
 
-\subsection{Differential equation}
-The combination of gravity, aerodynamic drag, and thrust give the equation
+A slight correction needs to be introduced however, to account for maximum acceleration.
+Let this factor be
 $$
-\vec{a}(\vec{r}, \vec{v}, m_e, t) = \frac{1}{m(m_e, h_{max}(t))} \left( G(\vec{r}, m_e, y) + D(\vec{r}, \vec{v}, m_e, t) + T(\vec{r}, \vec{v}, m_e, t) \right)
+\gamma = \begin{cases}
+  \frac{m(m_e, h_{max}(t)) a_{max}}{\left| \vec{T}(\vec{r}, \vec{v}, m_e, t) \right|} 
+  & : \quad \left| \vec{T}(\vec{r}, \vec{v}, m_e, t) \right| > m(m_e, h_{max}(t)) a_{max}
+  \\
+  1 
+  & : \quad otherwise
+\end{cases}
+$$
+
+This defines corrected thrust (and mass flow)
+$$
+\begin{aligned}
+  \vec{T_c}(\vec{r}, \vec{v}, m_e, t) & = \gamma \, \vec{T}(\vec{r}, \vec{v}, m_e, t) \\
+  \dot{m_c} & = \gamma \, \dot{m}
+\end{aligned}
+$$
+\subsection{Differential equations} \label{sec:eqns}
+The combination of gravity, aerodynamic drag, and (corrected) thrust give the equation for acceleration
+\begin{equation} \label{eq:diff1}
+\vec{a}(\vec{r}, \vec{v}, m_e, t) = \frac{1}{m(m_e, h_{max}(t))} \left( G(\vec{r}, m_e, y) + D(\vec{r}, \vec{v}, m_e, t) + T_c(\vec{r}, \vec{v}, m_e, t) \right)
+\end{equation}
+Furthermore, the equation for mass is
+\begin{equation} \label{eq:diff2}
+\frac{dm}{dt} = \dot{m_c}
+\end{equation}
+
+
+\subsection{Calculation of apoapsis and periapsis}
+Apoapsis and periapsis are calculated in every time step, as a sort of look-ahead, that lets the control algorithm act accordingly.
+These can be calculated with the equations described in~\cite{kepler}:
+$$
+\begin{aligned}
+  \vec{h} & = \vec{r} \times \vec{v}   
+  & \quad \text{(angular momentum)} \\
+  e & = \frac{1}{\mu} \left| \left( v^2 - \frac{\mu}{r} \right) \hat{r} - \left( \vec{r}\cdot\vec{v} \right) \hat{v}\right| 
+  & \quad \text{(eccentricity)} \\
+  E & = \frac{v^2}{2} - \frac{\mu}{r}  
+  & \quad \text{(specific orbital energy)} \\
+  a & = -\frac{\mu}{2E}   
+  & \quad \text{(semi-major axis)} \\
+  r_{ap} & = \left( 1 + e \right) a
+  & \quad \text{(apoapsis)} \\
+  r_{pe} & = \left( 1 - e \right) a
+  & \quad \text{(periapsis)} \\
+\end{aligned}
 $$
 
 \section{Ascent guidance}
@@ -363,8 +409,9 @@ $$
 If $\eta = 0$, the simulation ends in orbit.
 
 \section{Integration}
-The integration was done using a 4th order Runge-Kutta integrator on expended mass $m_e$, velocity $\vec{v}$ and position $\vec{r}$. 
-This choice was made, because even though RK4 is not stable in terms of energy, it is simple to implement and produces low errors for the relatively short time spans simulated during a rocket launch (in the order of 500 seconds).
+The integration of equations~\eqref{eq:diff1} and~\eqref{eq:diff2} described in section~\ref{sec:eqns} is done using a 4th order Runge-Kutta integrator.
+This choice was made, because even though RK4 is not stable in terms of energy, it is simple to implement and produces low errors for the relatively short time spans 
+simulated during a rocket launch (in the order of 500 seconds).
 Relatively few large time steps are required to get a stable simulation, which is very useful when running an optimization algorithm, compared to other methods.
 
 The choice of time step for the optimization step is detailed in the next section, but the final simulation is run in scaled real-time: such that we do $N$ steps per frame $\Delta t_f = 1/60 s$, resulting
@@ -430,6 +477,39 @@ This is done for different sets of time steps and scaling factors, progressively
 The parameters that is considered best at the end of optimization is then used in a more accurate simulation to produce results.
 
 \section{Results}
+\subsection{Used parameters}
+To get a sense for what the parameters should be, the values for Falcon 9 Block 5 was used as a starting point
+\footnote{These values are easily found on Wikipedia}. The values that had to be corrected was thrust on the second stage, which was increased by 20\%, in order for optimization to converge.
+
+\begin{center}
+\begin{tabular}{ r  | l | l  }
+  Parameter & Unit & Value \\
+  \hline
+  $m_{prop,0}$ & kg & 410900 \\
+  $m_{dry,0}$ & kg & 22200 \\
+  $F_{sl,0}$ & kN & 7605 \\
+  $F_{vac,0}$ & kN & 8226 \\
+  $I_{sp,sl,0}$ & s & 282 \\
+  $I_{sp,vac,0}$ & s & 311 \\
+  \hline
+  $m_{prop,1}$ & kg & 107500 \\
+  $m_{dry,1}$ & kg & 4000 \\
+  $F_{sl,1}$ & kN & 1200 \\
+  $F_{vac,1}$ & kN & 1200 \\
+  $I_{sp,sl,1}$ & s & 282 \\
+  $I_{sp,vac,1}$ & s & 348 \\
+  \hline
+  $m_{fairing,0}$ & kg & 1700 \\
+  $h_{deployment,0}$ & km & 100 \\
+  \hline
+  $m_{payload}$ & kg & 10000 \\
+  \hline
+  $R_0$ & km & 6374 \\
+  $\mu$ & $m^3 s^{−2}$ & $3.986004418\cdot10^{14}$ \\
+\end{tabular}
+\end{center}
+
+\subsection{Analysis}
 We'll start by looking at how well the guidance algorithm worked. Three goal orbits was optimized in the program, and we'll look at both how close it guided the rocket into the goal orbit as well as how much propellant was consumed.
 
 \begin{figure}[H]
