@@ -25,7 +25,7 @@
   \centering
   \vfill
   \vfill
-  \includegraphics[width=0.5\textwidth]{./220km.png}
+  \includegraphics[width=0.75\textwidth]{./220km.png}
   \vskip3cm
   {\Large
   \textbf{Optimizing the ascent trajectory for an orbital class launch vehicle}\\
@@ -42,7 +42,7 @@
 \newpage
 
 \section{Introduction}
-The goal of this project is to compare the fuel consumption for the launch of a multi-stage orbital class launch vehicle into low Earth orbit, from an equatorial and a polar launch site.
+The goal of this project is to compare the propellant consumption for the launch of a multi-stage orbital class launch vehicle into low Earth orbit, from an equatorial and a polar launch site.
 To do this, the project formulates an approximate model of the conditions encountered for the launch vehicle during ascent as well as a simple control algorithm.
 To be able to draw conclusions from the results gained, the control algorithm must be optimized. 
 This will be done using a randomized optimization algorithm.
@@ -65,7 +65,7 @@ $$
 The reason for including expended mass in the model is that it lets us derive the currently active stage, 
 as well as the necessary variables (thrust, mass and mass flow) of the rocket as a function of used propellant. 
 
-\subsection{Input parameters}
+\subsection{Input parameters} \label{sec:rocketparams}
 Consider each stage of the rocket as collection of parameters:
 \begin{center}
 \begin{tabular}{ r  | l  }
@@ -79,12 +79,10 @@ Consider each stage of the rocket as collection of parameters:
   $I_{sp,vac,i}$ & Specific impulse in vacuum pressure
 \end{tabular}
 \end{center}
-
 such that each stage $i=0,1,2...$ can be written
 $$
 s_i = (m_{prop,i}, m_{dry,i}, F_{sl,i}, F_{vac,i}, I_{sp,sl,i}, I_{sp,vac,i})
 $$
-
 Furthermore, a rocket typically has an aerodynamic shell (fairing) that is deployed around the edge of space (100km). This is modelled simply by the parameters
 \begin{center}
   \begin{tabular}{ r  | l  }
@@ -98,8 +96,18 @@ such that each fairing $i=0,1,2...$ can be written
 $$
 f_i = (m_i, h_{deployment,i})
 $$
+Lastly, the payload of the rocket is modelled as a mass $m_{payload}$. 
+Something that will be clear in section~\ref{sec:drag} is that we also need some basic aerodynamic parameters:
+\begin{center}
+\begin{tabular}{ r  | l  }
+  Parameter & Description \\
+  \hline
+  $c_d$ & Drag coefficient \\
+  $A$ & Frontal area
+\end{tabular}
+\end{center}
+These parameters are assumed to be constant.
 
-Lastly, the payload of the rocket is modelled as a mass $m_{payload}$.
 
 \subsection{Derived parameters}
 To run simulations of defined by the parameters in the previous section, 
@@ -141,7 +149,7 @@ $$
 
 Thus, the total instantaneous mass for an active stage $s_i$ is
 $$
-m_i = m_{stagemass,i} + m_{fairings}(h_{max}) + m_{payload}
+m_i(h_{max}) = m_{stagemass,i} + m_{fairings}(h_{max}) + m_{payload}
 $$
 
 \subsubsection{Thrust}
@@ -157,7 +165,7 @@ $$
 F_i(p(h)) = F_{sl,i} + \left( F_{sl,i} - F_{vac,i} \right) \frac{p(h)}{p(0)}
 $$
 
-This only holds if the stage has remaining fuel ($m_e - m_{prop,i} > 0$) 
+This only holds if the stage has remaining propellant ($m_e - m_{prop,i} > 0$) 
 otherwise 
 $$
 F_i(p(h)) = 0
@@ -186,14 +194,13 @@ $$
 \subsubsection{Summarization}
 To tie the equations together, we define the functions
 $$
-m(m_e) = m_i, \quad 
+m(m_e, h_{max}) = m_i(h_{max}), \quad 
 F(m_e, p(h)) = F_i(p(h)), \quad 
 \dot{m}(m_e, p(h)) = \dot{m}_i(p(h)) \quad 
 $$
 where the active stage $s_i$ is derived from a given $m_e$.
 
 \section{Physics model}
-To simulate the ascent of the rocket, a model of the physics involved is required.
 
 \subsection{Coordinate system}
 The simulation uses two coordinate systems, one cartesian and one kinematic.
@@ -211,12 +218,35 @@ and the tangential vector is $\hat{t} = \hat{r} \times \hat{z}$. In a circular o
   \caption{The instantaneous coordinates}
 \end{figure}
 
-\subsection{Atmosphere}
-The atmosphere in the simulation is modelled according to the U.S Standard Atmosphere~\cite{atmosphere2014}.
-%
-% Here we write a bit about the american standard atmosphere model
-%
-Produces $\rho(r)$
+From the kinematic system, we can derive altitude
+$$
+h(\vec{r}) = \left| \vec{r} \right| - R_0
+$$
+where $R_0$ is the equatorial radius of Earth, which is assumed to be spherical.
+From section~\ref{sec:rocketparams} it is clear that we also need the maximum altitude obtained up until time $t$
+$$
+h_{max} = \max \left\{  h(\vec{r}(t')) : t' \in [0, t] \right\}
+$$
+
+\subsection{Initial conditions}
+For ease of simulation, the influence of launching from the equator is modelled as an initial horizontal velocity $v_{surf}$.
+Since the radius of Earth is denoted as $R_0$, then the initial conditions in the Cartesian frame are:
+$$
+\vec{r}_0 = R_0 \cdot \hat{y}, \quad \vec{v}_0 = v_{surf} \cdot \hat{x}, \quad m_e = 0
+$$
+
+Launch from the equator result in $v_{surf} \approx 460 m/s$ and launch from the poles result in $v_{surf} = 0 m/s$.
+
+\subsection{Atmosphere} \label{sec:atmosphere}
+The atmosphere in the simulation is modelled according to the U.S Standard Atmosphere~\cite{atmosphere2014}. 
+In order to make the simulation more efficient, the model is linearly interpolated between points at altitudes spaced 1 km.
+The model produces the atmospheric density $\rho(h)$ and ambient pressure $P(h)$.
+Furthermore we assume that the atmosphere, independently of altitude, move at a velocity
+$$
+\vec{v}_{atm} (\vec{r}) = v_{surf} \cdot \hat{t}
+$$
+The modelling of velocity in practice has little effect on the simulation, as the rocket will quickly lift itself to an altitude where pressure tends to zero,
+but it will simplify things at low altitudes.
 
 \subsection{Forces}
 In this model, it assumed that three forces are acting on the rocket: thrust $T$, aerodynamic drag $D$ and gravity $G$.
@@ -224,38 +254,24 @@ In this model, it assumed that three forces are acting on the rocket: thrust $T$
 \subsubsection{Gravity - G}
 Gravity is modelled based on the Newtonian formulation, resulting in a force
 $$
-\vec{G}(\vec{r}, m_e) = -m(m_e) \frac{\mu}{r^2} \hat{r} 
+\vec{G}(\vec{r}, m_e, t) = -m(m_e, (t)) \frac{\mu}{r^2} \hat{r} 
 $$
 where r is the distance to the center of Earth from the rocket, and $\mu \approx 3.986\cdot10^{14} m^3 s^{−2}$ is the standard gravitational parameter.
 
-\subsubsection{Aerodynamic drag - D}
-% 
-% Include Drag equation
-% Include atmospheric model incl. reference
-% Include typical C_d
-%
-To model aerodynamic drag it first is assumed that the atmosphere, independently of radius, moves at a velocity:
-$$
-\vec{v}_{atm} (\vec{r}) = v_{surf} \cdot \hat{t}
-$$
-This allows the definition of the wind-relative velocity
+\subsubsection{Aerodynamic drag - D} \label{sec:drag}
+
+From the atmospheric model described in section~\ref{sec:atmosphere}, we can get the wind-relative velocity
 $$
 \vec{v}_{atm,rel} (\vec{r}, \vec{v}) = \vec{v} - \vec{v}_{atm} (\vec{r})
 $$
 
-%
-% TYPICAL VALUE REFERENCE FROM OTHER PEOPLE THANKS
-%
-Under the assumption that the the drag equation holds for the entirety of the ascent, then
+Under the assumption that the the drag equation holds for the entirety of the ascent, then drag becomes
 $$
-\vec{D}(\vec{r}, \vec{v}, m_e) = - \frac{ m(m_e) \cdot  C_d  \cdot A \cdot \rho(r) }{2} {\left| \vec{v}_{atm,rel} (\vec{r}, \vec{v}) \right|}^2 \hat{v}
+\vec{D}(\vec{r}, \vec{v}, m_e, t) = - \frac{ m(m_e, (t)) \cdot  c_d  \cdot A \cdot \rho(h(\vec{r})) }{2} {\left| \vec{v}_{atm,rel} (\vec{r}, \vec{v}) \right|}^2 \hat{v}
 $$
+where $A$ and $c_d$ are parameters given in section~\ref{sec:rocketparams}.
 % coefficient of drag $C_d = 0.2$, 
 \subsubsection{Thrust - T}
-
-%
-% stuff about mass flow
-%
 
 To abstract the guidance algorithms from the physics model, it is assumed that guidance controls throttle as
 $$
@@ -266,26 +282,25 @@ $$
 \theta = \theta(\vec{r}, \vec{v}, m_e, t)\in\left[0,\pi\right]
 $$
 
-Throttle and AoT interact such that 
+Throttle and AoT interact such that thrust becomes
 $$
-\vec{T}(\vec{r}, \vec{v}, m_e, t) = \left( \cos ( \theta ) \cdot\hat{r} + \sin ( \theta ) \cdot\hat{t} \right) \cdot F(m_e, P) \cdot \eta
+\vec{T}(\vec{r}, \vec{v}, m_e, t) = \left( \cos ( \theta ) \cdot\hat{r} + \sin ( \theta ) \cdot\hat{t} \right) \cdot F(m_e, P(h(\vec{r}))) \cdot \eta
 $$
 
 \subsection{Differential equation}
 The combination of gravity, aerodynamic drag, and thrust give the equation
 $$
-\vec{a}(\vec{r}, \vec{v}, m_e) = \frac{1}{m_i} \left( G(\vec{r}, m_e) + D(\vec{r}, \vec{v}, m_e) + T(\vec{r}, \vec{v}, m_e, t) \right)
+\vec{a}(\vec{r}, \vec{v}, m_e, t) = \frac{1}{m(m_e, h_{max}(t))} \left( G(\vec{r}, m_e, y) + D(\vec{r}, \vec{v}, m_e, t) + T(\vec{r}, \vec{v}, m_e, t) \right)
 $$
 
 \section{Ascent guidance}
-The ascent guidance implemented in the simulation can be categorized into five phases:
-\begin{itemize}
-  \item Liftoff
-  \item Kickpitch
-  \item Gravity turn
-  \item Orbital insertion
-  \item Terminal guidance
-\end{itemize}
+The ascent guidance implemented in the simulation can be categorized into five phases: 
+\textit{liftoff}, 
+\textit{kickpitch}, 
+\textit{gravity turn}, 
+\textit{orbital insertion} and 
+\textit{terminal guidance}.
+These phases are characterized by parameters that control $\theta$ and $\eta$, which are optimized by a method described in section~\ref{sec:optimize}. 
 
 \begin{figure}[H]
   \centering
@@ -294,7 +309,7 @@ The ascent guidance implemented in the simulation can be categorized into five p
 \end{figure}
 
 \subsection{Liftoff ($0 < t < t_{vertical}$)}
-During this phase, the trajectory is entirely vertical - $\theta = 0$ and $\eta = 1$.
+During this phase, the trajectory is entirely vertical: $\theta = 0$ and $\eta = 1$.
 
 \subsection{Kickpitch ($t_{vertical} < t < t_{kickpitch}$)}
 During this phase, the trajectory starts pitching towards the horizon slightly.
@@ -319,13 +334,10 @@ $$
 \subsection{Terminal guidance}
 Terminal guidance is necessary to achieve a circular orbit within this simulation and previously mentioned ascent guidance parameters.
 It consists of a PI-controller that attempts to cancel out any vertical velocity.
-
-The conditions for entering terminal guidance is:
-\begin{itemize}
-  \item $h > g_{ap} - 55$
-  \item OR:
-  \item $h > 100$ and $\left| \vec{v} \cdot \hat{r} \right| < 50$
-\end{itemize}
+It is triggered, and overrides orbital insertion, only once certain conditions are fulfilled:
+$$
+\left( h > g_{ap} - 55  \right) \quad \textbf{or} \quad \left(  h > 100 \,\, \text{and} \, \left| \vec{v} \cdot \hat{r} \right| < 50 \right)
+$$
 
 Within terminal guidance, $\theta$ is controlled with the regulator 
 $$
@@ -364,22 +376,13 @@ The simulation is then run as an animation with speed-up $n$, resulting in $n \c
 Going much higher, up to 10x more steps per frame, would be computationally possible but introduces
 numerical inaccuracies. Being able to run the simulation in real-time means that it could also, in theory, be run on a real launch vehicle.
 
-\subsection{Initial conditions}
-For ease of simulation, the influence of launching from the equator is modelled as an initial horizontal velocity $v_{surf}$.
-If the radius of Earth is denoted as $R_0$, then the initial conditions in the Cartesian frame are:
-$$
-\vec{r}_0 = R_0 \cdot \hat{y}, \quad \vec{v}_0 = v_{surf} \cdot \hat{x}, \quad m_e = 0
-$$
-
-Launch from the equator result in $v_{surf} \approx 440 m/s$ and launch from the poles result in $v_{surf} = 0 m/s$.
-
-\section{Optimization of parameters}
+\section{Optimization of parameters} \label{sec:optimize}
 To optimize parameters, an error function has to be established.
 From introduction, we know that the goal is to reach a specific periapsis ($g_{pe}$) and apoapsis ($g_{ap}$). 
 Let the periapsis from each simulation be $r_{pe}$, and the periapsis be $r_{ap}$.
 As the terminal guidance algorithm works by eliminating vertical velocity, after reaching maximum altitude, we also want to make sure to use the maximum altitude reached ($h_{max}$).
 To make sure the terminal guidance algorithm works well, we also want to use the altitude at which orbit is reached ($h$).
-Since the project goal is to look at fuel usage for equatorial versus polar launch, it would be good to also use the fuel remaining after orbit insertion ($m_{final}$).
+Since the project goal is to look at propellant usage for equatorial versus polar launch, it would be good to also use the propellant remaining after orbit insertion ($m_{final}$).
 
 This lets us define the error function
 $$
@@ -407,7 +410,7 @@ are randomly perturbated from the currently best choice of parameters using spec
 \end{center}
 
 For every perturbation iteration $i$, a simulation is run at a specific timestep $\Delta t$ and iteration-specific scaling 
-$ scale = s (5 - (i\,\text{mod}\,5)) / 5$.\footnote{This led to being able to converge faster} If the result is scored lower than the currently best score, the currently best choice of parameters are set to
+$ scale = s (5 - (i\,\text{mod}\,5)) / 5$.\footnote{This led to faster convergence, since some iterations are more precise} If the result is scored lower than the currently best score, the currently best choice of parameters are set to
 the perturbated ones.
 If the result is not scored lower, the perturbation is discarded.
 This is done for different sets of time steps and scaling factors, progressively going to a finer time step, until either a max count of attempts have been reached or a minimum score is achieved according to the following sequence:
@@ -434,7 +437,7 @@ We'll start by looking at how well the guidance algorithm worked. Three goal orb
   \includegraphics[width=\textwidth]{./220km.png}
   \caption{
     \label{fig:trajectory}
-    Typical ascent to 220 km in a non-rotating Earth-centric reference frame. Trajectory shown in white. Final orbit shown in red.}
+    Typical ascent to 220 km in a non-rotating Earth-centric reference frame. Equatorial launch. Trajectory shown in white. Final orbit shown in red.}
 \end{figure}
 
 It's clear from the trajectory in figure~\ref{fig:trajectory} that the trajectory starts out mostly vertical, where the atmosphere is densest. This prevents too much losses due to drag.
@@ -443,7 +446,7 @@ It's clear from the trajectory in figure~\ref{fig:trajectory} that the trajector
 \begin{center}
   \begin{tabular}{ r | r  | l  l  }
      &   &  Achieved  \\
-    Surface motion & Goal altitude & Perigee & Apogee \\
+    Surface motion ($v_{surf}$) & Goal altitude & Perigee & Apogee \\
     \hline
     0 m/s & 170 km & 168.45 km & 169.52 km \\
     460 m/s & 170 km & 168.03 km & 170.26 km \\
@@ -461,7 +464,7 @@ It's clear that the algorithm works astonishingly well, with insertions just a f
 \begin{center}
   \begin{tabular}{ r | r  | l  l  }
      &   &   Propellant   \\
-    Surface motion &  Goal altitude & Consumed & Remaining \\
+    Surface motion ($v_{surf}$)  &  Goal altitude & Consumed & Remaining \\
     \hline
     0 m/s & 170 km & 512414 kg & 5986 kg \\
     460 m/s & 170 km & 509838 kg & 8562 kg \\
@@ -496,7 +499,7 @@ This is likely an optimization problem, rather than related to the physics of th
 but it could also be that the optimization function finds local minimums rather than a global minimum. 
 A solution to this would be to sometimes run the algorithm for entirely random parameters, or increase the random scaling temporarily for every nth iteration. 
 
-One must be careful just looking at the results however, as one might say that it is not by a huge margin that equatorial launch is better, 
+One must be careful just looking at the results, as one might say that it is not by a huge margin that equatorial launch is better, 
 but that's where the tyranny of the rocket equation comes into play.
 This can be shown by introducing Tsiolkovsky's rocket equation
 $$
@@ -509,7 +512,7 @@ $$
 \end{aligned}
 $$
 If the goal is to accelerate 10000 kg of payload into a new velocity of 6 km/s with the second stage defined in the simulations, 
-then reducing the fuel consumption by 2000 kg allows the usage of 10000 kg less fuel.
+then reducing the propellant consumption by 2000 kg allows the usage of 10000 kg less propellant in total.
 \begin{figure}[H]
   \begin{widepage}
     \centering
