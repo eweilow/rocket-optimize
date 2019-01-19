@@ -7,7 +7,9 @@
 \usepackage{amsmath}
 \usepackage{mathtools}
 \usepackage{changepage}  
+\usepackage{apacite}
 
+\bibliographystyle{apacite}
 \setlength{\columnsep}{1cm}
 
 \newlength{\offsetpage}
@@ -145,7 +147,7 @@ $$
 \subsubsection{Thrust}
 
 Since the thrust of a rocket propulsion system is linear in the pressure difference between the exhaust and surrounding pressure, 
-it is assumed in our model that the thrust $F$ changes linearly between $F_{sea}$ and $F_{vacuum}$ with pressure $p$.
+it is assumed in our model that the thrust $F$ changes linearly between $F_{sea}$ and $F_{vacuum}$ with pressure $p$~\cite{thrust}.
 %
 % https://www.grc.nasa.gov/www/k-12/rocket/thrsteq.html
 %
@@ -165,7 +167,7 @@ $$
 % 
 % https://www.grc.nasa.gov/www/k-12/airplane/specimp.html 
 %
-Mass flow is necessary to find $m_e(t)$, and is given in a general form by
+Mass flow is necessary to find $m_e(t)$, and is given in a general form by \cite{massflow}:
 $$
 \dot{m} = \frac{F}{ g_0 I_{sp}}
 $$
@@ -210,6 +212,7 @@ and the tangential vector is $\hat{t} = \hat{r} \times \hat{z}$. In a circular o
 \end{figure}
 
 \subsection{Atmosphere}
+The atmosphere in the simulation is modelled according to the U.S Standard Atmosphere~\cite{atmosphere2014}.
 %
 % Here we write a bit about the american standard atmosphere model
 %
@@ -361,6 +364,15 @@ The simulation is then run as an animation with speed-up $n$, resulting in $n \c
 Going much higher, up to 10x more steps per frame, would be computationally possible but introduces
 numerical inaccuracies. Being able to run the simulation in real-time means that it could also, in theory, be run on a real launch vehicle.
 
+\subsection{Initial conditions}
+For ease of simulation, the influence of launching from the equator is modelled as an initial horizontal velocity $v_{surf}$.
+If the radius of Earth is denoted as $R_0$, then the initial conditions in the Cartesian frame are:
+$$
+\vec{r}_0 = R_0 \cdot \hat{y}, \quad \vec{v}_0 = v_{surf} \cdot \hat{x}, \quad m_e = 0
+$$
+
+Launch from the equator result in $v_{surf} \approx 440 m/s$ and launch from the poles result in $v_{surf} = 0 m/s$.
+
 \section{Optimization of parameters}
 To optimize parameters, an error function has to be established.
 From introduction, we know that the goal is to reach a specific periapsis ($g_{pe}$) and apoapsis ($g_{ap}$). 
@@ -394,20 +406,21 @@ are randomly perturbated from the currently best choice of parameters using spec
   \end{tabular}
 \end{center}
 
-For every perturbation, a simulation is run at a specific timestep $\Delta t$. If the result is scored lower than the currently best score, the currently best choice of parameters are set to
+For every perturbation iteration $i$, a simulation is run at a specific timestep $\Delta t$ and iteration-specific scaling 
+$ scale = s (5 - (i\,\text{mod}\,5)) / 5$.\footnote{This led to being able to converge faster} If the result is scored lower than the currently best score, the currently best choice of parameters are set to
 the perturbated ones.
 If the result is not scored lower, the perturbation is discarded.
 This is done for different sets of time steps and scaling factors, progressively going to a finer time step, until either a max count of attempts have been reached or a minimum score is achieved according to the following sequence:
 \begin{center}
   \begin{tabular}{ r | l | l | l  }
-    Maximum score & Maximum runs & $\Delta t$ & Random scale \\
+    Maximum score & Maximum runs & $\Delta t$ & Random scale ($s$) \\
     \hline
     10 & 10000 & 1 & 30 \\
     5 & 10000 & 1 & 15 \\
     5 & 10000 & 0.5 & 4 \\
     2 & 10000 & 0.5 & 2 \\
     1 & 10000 & 0.2 & 1 \\
-    0.5 & 10000 & 0.1 & 0.5 \\
+    0.2 & 1000 & 0.1 & 1 \\
   \end{tabular}
 \end{center}
 
@@ -415,6 +428,17 @@ The parameters that is considered best at the end of optimization is then used i
 
 \section{Results}
 We'll start by looking at how well the guidance algorithm worked. Three goal orbits was optimized in the program, and we'll look at both how close it guided the rocket into the goal orbit as well as how much propellant was consumed.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{./220km.png}
+  \caption{
+    \label{fig:trajectory}
+    Typical ascent to 220 km in a non-rotating Earth-centric reference frame. Trajectory shown in white. Final orbit shown in red.}
+\end{figure}
+
+It's clear from the trajectory in figure~\ref{fig:trajectory} that the trajectory starts out mostly vertical, where the atmosphere is densest. This prevents too much losses due to drag.
+
 \subsection{Orbit insertion accuracy}
 \begin{center}
   \begin{tabular}{ r | r  | l  l  }
@@ -463,11 +487,14 @@ This is further shown in the following table, comparing propellant usage for equ
 \end{center}
 
 
+
 \section{Discussion}
 
 By the results achieved, it's clear that orbital launch from the equator is better than launch from the poles. 
-It is however interesting that the fuel consumption, for the orbit insertions simulated, is the most equal for a target orbit of 170 km. 
-This is most likely not related to the physics of the problem, but rather an effect of the way that the trajectory is created and optimized.
+It is however interesting that the propellant consumption, for the orbit insertions simulated, is higher for polar launch to 220 km than it is for polar launch to 275 km.
+This is likely an optimization problem, rather than related to the physics of the problem. A better error function might solve this,
+but it could also be that the optimization function finds local minimums rather than a global minimum. 
+A solution to this would be to sometimes run the algorithm for entirely random parameters, or increase the random scaling temporarily for every nth iteration. 
 
 One must be careful just looking at the results however, as one might say that it is not by a huge margin that equatorial launch is better, 
 but that's where the tyranny of the rocket equation comes into play.
@@ -502,80 +529,9 @@ then reducing the fuel consumption by 2000 kg allows the usage of 10000 kg less 
 
 It was also interesting to see that the \textit{very} simple guidance algorithm was able to guide the rocket into an orbit very close to the goal.
 It is definitely just scraping the surface of what is possible.
-
-\newpage
-
-\appendix
-
-\section{Raw data}
-\subsection{170 km orbit}
-\begin{center}
-  \begin{tabular}{ r | l   l | l   l }
-     & Goal  &  & Achieved &  \\
-    Surface motion & Perigee & Apogee & Perigee & Apogee \\
-    \hline
-    0 m/s & 170 km & 170 km & 168.21 km & 169.76 km \\
-    460 m/s & 170 km & 170 km & 168.17 km & 169.49 km
-  \end{tabular}
-\end{center}
-
-\begin{center}
-  \begin{tabular}{ r   l   l l }
-     &  & Propellant &  \\
-    Surface motion & Payload & Remaining & Consumed \\
-    \hline
-    0 m/s & 10000 kg & 6490.91 kg  & 511909 kg \\
-    460 m/s & 10000 kg & 8297.18 kg  & 510103 kg \\
-    \hline
-      &   & 127.82\%  & 99.64\% \\
-  \end{tabular}
-\end{center}
-
-\subsection{220 km orbit}
-\begin{center}
-  \begin{tabular}{ r | l   l | l   l }
-     & Goal  &  & Achieved &  \\
-    Surface motion & Perigee & Apogee & Perigee & Apogee \\
-    \hline
-    0 m/s & 220 km & 220 km & 218.87 km & 219.39 km \\
-    460 m/s & 220 km & 220 km & 218.93 km & 223.90 km
-  \end{tabular}
-\end{center}
-
-\begin{center}
-  \begin{tabular}{ r   l   l l }
-     &  & Propellant &  \\
-    Surface motion & Payload & Remaining & Consumed \\
-    \hline
-    0 m/s & 10000 kg & 2271.10 kg  & 516129 kg \\
-    460 m/s & 10000 kg & 5675.03 kg  & 512725 kg \\
-    \hline
-      &   & 250\%  & 99.34\% \\
-  \end{tabular}
-\end{center}
-
-\subsection{275 km orbit}
-\begin{center}
-  \begin{tabular}{ r | l   l | l   l }
-     & Goal  &  & Achieved &  \\
-    Surface motion & Perigee & Apogee & Perigee & Apogee \\
-    \hline
-    0 m/s & 275 km & 275 km & 274.85 km & 274.88 km \\
-    460 m/s & 275 km & 275 km & 273.93 km & 274.38 km
-  \end{tabular}
-\end{center}
-
-\begin{center}
-  \begin{tabular}{ r   l   l l }
-     &  & Propellant &  \\
-    Surface motion & Payload & Remaining & Consumed \\
-    \hline
-    0 m/s & 10000 kg & 1489.10 kg  & 516911 kg \\
-    460 m/s & 10000 kg & 2939.79 kg  & 515460 kg \\
-    \hline
-      &   & 197.4\%  & 99.72\% \\
-  \end{tabular}
-\end{center}
-
+\begingroup
+\raggedright
+\bibliography{report}{}
+\endgroup
 
 \end{document}
