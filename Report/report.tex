@@ -6,9 +6,15 @@
 \usepackage{float}
 \usepackage{amsmath}
 \usepackage{mathtools}
+\usepackage{changepage}  
 
 \setlength{\columnsep}{1cm}
 
+\newlength{\offsetpage}
+\setlength{\offsetpage}{1.5cm}
+\newenvironment{widepage}{\begin{adjustwidth}{-\offsetpage}{-\offsetpage}%
+    \addtolength{\textwidth}{2\offsetpage}}%
+{\end{adjustwidth}}
 
 \include{./commands.text}
 
@@ -33,25 +39,32 @@
 \end{titlepage}
 \newpage
 
-\section{Project summary}
-This project formulates an approximate model of the conditions encountered for an orbital class launch vehicle during ascent into Low-Earth orbit,
-as well as a strategy for trajectory optimization for polar and equatorial launches.
+\section{Introduction}
+The goal of this project is to compare the fuel consumption for the launch of a multi-stage orbital class launch vehicle into low Earth orbit, from an equatorial and a polar launch site.
+To do this, the project formulates an approximate model of the conditions encountered for the launch vehicle during ascent as well as a simple control algorithm.
+To be able to draw conclusions from the results gained, the control algorithm must be optimized. 
+This will be done using a randomized optimization algorithm.
+The project is thus split into four major parts: the equations describing the state of the rocket, the physics model, the ascent guidance algorithm as well as the optimization of control parameters.
 
-The project is split into four major parts: the equations describing the rocket, the physics model, the ascent guidance algorithm as well as the optimization of parameters.
+\section{Equations of the rocket}
+A rocket works on the principle of momentum conservation. Mass is ejected at a rate $\dot{m}$ (mass flow) through the engines at a velocity $v_{e} = I_{sp} / g_{_0}$, 
+producing a thrust $F = \dot{m} \cdot v_{e} = \dot{m} \cdot I_{sp} / g_{_0}$. If we can calculate these parameters at all times, we can simulate a rocket.
 
-\section{Intrinsic equations describing the rocket}
-\subsection{Input parameters}
-The state of the rocket can be described with position, velocity and expended mass ($m_e$)
+To complicate things further, we need to consider that the rocket has several stages.
+This can be solved by letting the state of the rocket be described with position, velocity and \textit{expended mass} ($m_e$):
 $$
 S = (\vec{r}, \vec{v}, m) = (x, y, z, v_x, v_y, v_z, m_e)
 $$
-where $m_e$ is the integral of exhaust mass flow (propulsion) over time
+where $m_e$ is the integral of exhaust mass flow (ejected mass) over time:
 $$
 m_e(t) = \int_0^t \dot{m}(S,t) dt
 $$
 
 The reason for including expended mass in the model is that it lets us derive the currently active stage, 
-as well as the necessary variables of the rocket as a function of used propellant. This is done by considering each state as collection of parameters
+as well as the necessary variables (thrust, mass and mass flow) of the rocket as a function of used propellant. 
+
+\subsection{Input parameters}
+Consider each stage of the rocket as collection of parameters:
 \begin{center}
 \begin{tabular}{ r  | l  }
   Parameter & Description \\
@@ -168,7 +181,8 @@ $$
 \dot{m}_i(p(h)) = \frac{F_i(p(h))}{ g_0 I_{sp,i}(p(h))}
 $$
 
-Finally, to tie the equations together, we define 
+\subsubsection{Summarization}
+To tie the equations together, we define the functions
 $$
 m(m_e) = m_i, \quad 
 F(m_e, p(h)) = F_i(p(h)), \quad 
@@ -251,7 +265,7 @@ $$
 
 Throttle and AoT interact such that 
 $$
-\vec{T}(\vec{r}, \vec{v}, m_e, t) = \left( \cos \theta \hat{r} + \sin \theta \hat{t} \right) \cdot F(m_e, P) \cdot \eta
+\vec{T}(\vec{r}, \vec{v}, m_e, t) = \left( \cos ( \theta ) \cdot\hat{r} + \sin ( \theta ) \cdot\hat{t} \right) \cdot F(m_e, P) \cdot \eta
 $$
 
 \subsection{Differential equation}
@@ -336,9 +350,59 @@ If $\eta = 0$, the simulation ends in orbit.
 \section{Integration}
 
 \section{Optimization of parameters}
+To optimize parameters, an error function has to be established.
+From introduction, we know that the goal is to reach a specific periapsis ($g_{pe}$) and apoapsis ($g_{ap}$). 
+Let the periapsis from each simulation be $r_{pe}$, and the periapsis be $r_{ap}$.
+As the terminal guidance algorithm works by eliminating vertical velocity, after reaching maximum altitude, we also want to make sure to use the maximum altitude reached ($h_{max}$).
+To make sure the terminal guidance algorithm works well, we also want to use the altitude at which orbit is reached ($h$).
+Since the project goal is to look at fuel usage for equatorial versus polar launch, it would be good to also use the fuel remaining after orbit insertion ($m_{final}$).
+
+This lets us define the error function
+$$
+\begin{aligned}
+E(r_{pe}, r_{ap}, g_{pe}, g_{ap}, h, h_{max}, m_{final}) = \\
+\frac{{\left( r_{ap} - g_{ap} \right)}^2}{{\left( 10 \right)}^2} +
+\frac{{\left( r_{pe} - g_{pe} \right)}^2}{{\left( 10 \right)}^2} +
+\frac{{\left( h_{max} - g_{pe} \right)}^2}{{\left( 10 \right)}^2} +
+\frac{{\left( h - g_{pe} \right)}^2}{{\left( 10 \right)}^2}
++ m_{final}
+\end{aligned}
+$$
+
+This error function is used to score control algorithm parameters using a randomized optimization method, in which the ascent control parameters described below 
+are randomly perturbated from the currently best choice of parameters using specific random radii and scaling, such that for each one: $parameter_{i+1} = parameter_{i} + scale \cdot \text{random}(-radii, radii)$
+\begin{center}
+  \begin{tabular}{ r | l  }
+    Parameter & Random radius \\
+    \hline
+    $t_{vertical}$ & 1 \\
+    $t_{kickpitch}$ & 4 \\
+    $\theta_{staging}$ & 2 \\
+    $a_{max}$ & 0.1 \\
+  \end{tabular}
+\end{center}
+
+For every perturbation, a simulation is run at a specific timestep $\Delta t$. If the result is scored lower than the currently best score, the currently best choice of parameters are set to
+the perturbated ones.
+If the result is not scored lower, the perturbation is discarded.
+This is done for different sets of time steps and scaling factors, progressively going to a finer time step, until either a max count of attempts have been reached or a minimum score is achieved according to the following sequence:
+\begin{center}
+  \begin{tabular}{ r | l | l | l  }
+    Maximum score & Maximum runs & $\Delta t$ & Random scale \\
+    \hline
+    10 & 10000 & 1 & 30 \\
+    5 & 10000 & 1 & 15 \\
+    5 & 10000 & 0.5 & 4 \\
+    2 & 10000 & 0.5 & 2 \\
+    1 & 10000 & 0.2 & 1 \\
+    0.5 & 10000 & 0.1 & 0.5 \\
+  \end{tabular}
+\end{center}
+
+The parameters that is considered best at the end of optimization is then used in a more accurate simulation to produce results.
 
 \section{Results}
-
+We'll start by looking at how well the guidance algorithm worked. Three goal orbits was optimized in the program, and we'll look at both how close it guided the rocket into the goal orbit as well as how much propellant was consumed.
 \subsection{Orbit insertion accuracy}
 \begin{center}
   \begin{tabular}{ r | r  | l  l  }
@@ -355,6 +419,7 @@ If $\eta = 0$, the simulation ends in orbit.
     460 m/s & 275 km & 273.93 km & 274.38 km
   \end{tabular}
 \end{center}
+It's clear that the algorithm works astonishingly well, with insertions just a few km in difference from the goal. It also works well for both equatorial and polar launch.
 
 \subsection{Propellant consumption}
 \begin{center}
@@ -372,8 +437,8 @@ If $\eta = 0$, the simulation ends in orbit.
     460 m/s & 275 km & 515460 kg & 2940 kg
   \end{tabular}
 \end{center}
-
-\subsection{Equatorial vs polar}
+The propellant consumption was highest for the highest orbit goal, a reasonable expectation, but the difference between equatorial and polar launch was the lowest for the 220 km orbit goal.
+This is further shown in the following table, comparing propellant usage for equatorial launch relative to polar launch:
 \begin{center}
   \begin{tabular}{ r | l  l  }
      &   Propellant   \\
@@ -386,14 +451,45 @@ If $\eta = 0$, the simulation ends in orbit.
 \end{center}
 
 
-\section{Analysis}
+\section{Discussion}
 
 By the results achieved, it's clear that orbital launch from the equator is better than launch from the poles. 
-One must be careful just looking at the results however, as one might say that it is not by a huge margin that equatorial launch is better, but that's where the tyranny of the rocket equation comes into play.
-If our payload goal is to place 10000 kg into a 220 km orbit, then reducing the fuel consumption by 3500 kg allows a much smaller first stage, as the rocket equation tends toward exponential changes.
+It is however interesting that the fuel consumption, for the orbit insertions simulated, is the most equal for a target orbit of 170 km. 
+This is most likely not related to the physics of the problem, but rather an effect of the way that the trajectory is created and optimized.
 
-It is however interesting that the fuel consumption is the most equal for a target orbit of 170 km. Without knowing for certain what the result should be, the way that the trajectory is created and optimized will 
-play a role. The \textit{very} simple guidance algorithm is definitely just scraping the surface of what is possible.
+One must be careful just looking at the results however, as one might say that it is not by a huge margin that equatorial launch is better, 
+but that's where the tyranny of the rocket equation comes into play.
+This can be shown by introducing Tsiolkovsky's rocket equation
+$$
+\Delta v = v_{exhaust} \ln \frac{m_{final}}{m_{initial}}
+$$
+Solving for $m_{initial}$ gives
+$$
+\begin{aligned}
+  m_{initial} = m_{final} \exp \left( -\frac{\Delta v}{v_{exhaust}} \right)
+\end{aligned}
+$$
+If the goal is to accelerate 10000 kg of payload into a new velocity of 6 km/s with the second stage defined in the simulations, 
+then reducing the fuel consumption by 2000 kg allows the usage of 10000 kg less fuel.
+\begin{figure}[H]
+  \begin{widepage}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{./plots/consumedToInitial.png}
+      \caption{The initial mass necessary for the $v_{exhaust}$ used in simulation, for different final masses}
+    \end{minipage}
+    \hspace{0.025\textwidth}
+    \begin{minipage}{0.45\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{./plots/consumedToInitial_diff.png}
+      \caption{The difference in initial mass for final masses of 14 and 16 tons}
+    \end{minipage}
+  \end{widepage}
+\end{figure}
+
+It was also interesting to see that the \textit{very} simple guidance algorithm was able to guide the rocket into an orbit very close to the goal.
+It is definitely just scraping the surface of what is possible.
 
 \newpage
 
