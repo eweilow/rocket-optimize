@@ -48,8 +48,8 @@ plt.annotate(
     textcoords='offset points',
     arrowprops=arrowprops
 )
-plt.xticks([])
-plt.yticks([])
+plt.xticks([0])
+plt.yticks([0, 90])
 plt.xlabel("Time")
 plt.ylabel("Thrust angle from vertical")
 plt.tight_layout()
