@@ -348,6 +348,18 @@ $$
 If $\eta = 0$, the simulation ends in orbit.
 
 \section{Integration}
+The integration was done using a 4th order Runge-Kutta integrator on expended mass $m_e$, velocity $\vec{v}$ and position $\vec{r}$. 
+This choice was made, because even though RK4 is not stable in terms of energy, it is simple to implement and produces low errors for the relatively short time spans simulated during a rocket launch (in the order of 500 seconds).
+Relatively few large time steps are required to get a stable simulation, which is very useful when running an optimization algorithm, compared to other methods.
+
+The choice of time step for the optimization step is detailed in the next section, but the final simulation is run in scaled real-time: such that we do $N$ steps per frame $\Delta t_f = 1/60 s$, resulting
+in a time step of 
+$$
+\Delta t = 1/n \Delta  t_f = 1/(60N) s
+$$ 
+The simulation is then run as an animation with speed-up $n$, resulting in $n \cdot N$ time steps taken per frame. 
+Going much higher, up to 10x more steps per frame, would be computationally possible but introduces
+numerical inaccuracies. Being able to run the simulation in real-time means that it could also, in theory, be run on a real launch vehicle.
 
 \section{Optimization of parameters}
 To optimize parameters, an error function has to be established.
