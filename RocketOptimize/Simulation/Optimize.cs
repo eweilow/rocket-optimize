@@ -25,7 +25,7 @@ namespace RocketOptimize.Simulation
                     + ErrorFunction(distanceFromPeriapsisGoal, distanceScaling)
                     + ErrorFunction(distanceFromReachedAltitudeGoal, distanceScaling)
                     + ErrorFunction(distanceFromAltitudeGoal, distanceScaling)
-                    + fuelLeft;
+                    + fuelLeft*5;
             //+ ErrorFunction((guess.ThrustDuration1 + guess.ThrustDuration2) - guess.ThrustCutoff, 1);
         }
 
@@ -78,7 +78,7 @@ namespace RocketOptimize.Simulation
             control = new AscentSimulationControl()
             {
                 InitialVerticalTime = Math.Max(5, currentBestGuess.InitialVerticalTime + (perturbationScale * _random.NextDouble(1))),
-                KickPitchTime = currentBestGuess.KickPitchTime + (perturbationScale * _random.NextDouble(4)),
+                KickPitchTime = Math.Max(0, currentBestGuess.KickPitchTime + (perturbationScale * _random.NextDouble(4))),
                 KickPitchAngle = currentBestGuess.KickPitchAngle, //Math.Max(0, currentBestGuess.KickPitchAngle + (perturbationScale * _random.NextDouble(1))),
                 StagingAngle = Math.Max(0, Math.Min(90, currentBestGuess.StagingAngle + (perturbationScale * _random.NextDouble(2)))),
                 MaxAcceleration = Math.Max(0, currentBestGuess.MaxAcceleration + (perturbationScale * _random.NextDouble(0.1))),

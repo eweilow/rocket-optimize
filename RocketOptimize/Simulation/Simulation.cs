@@ -83,21 +83,21 @@ namespace RocketOptimize.Simulation
 
             double angularVelocity = WindSurfaceVelocity / Constants.EarthRadius;
 
-            Vector3d windVelocityVector = _horizontal * angularVelocity * _currentRadius;
+            Vector3d windVelocityVector = _horizontal * WindSurfaceVelocity; // angularVelocity * _currentRadius;
             Vector3d windRelativeVelocity = state.Velocity - windVelocityVector;
             double velocity = windRelativeVelocity.Length;
             double velocitySquared = velocity * velocity;
 
-            double MachNumber = velocity / 1000.0;
-            double CoefficientOfDrag;
-            if (MachNumber < 1)
-            {
-                CoefficientOfDrag = 0.3 + MachNumber;
-            }
-            else
-            {
-                CoefficientOfDrag = 1.3 * Math.Exp(-MachNumber);
-            }
+            //double MachNumber = velocity / 1000.0;
+            double CoefficientOfDrag = 0.2;
+            //if (MachNumber < 1)
+            //{
+            //    CoefficientOfDrag = 0.3 + MachNumber;
+            //}
+            //else
+            //{
+            //    CoefficientOfDrag = 1.3 * Math.Exp(-MachNumber);
+            //}
 
             const double Radius = 5 / 2;
             const double Area = Radius * Radius * Math.PI;
@@ -171,7 +171,16 @@ namespace RocketOptimize.Simulation
                 isTerminalGuidanceTriggered = true;
                 if (initiallyWasGuidanceTriggered)
                 {
-                    state.Thrust = terminalGuidanceThrustDirection * Math.Min(ControlInput.MaxAcceleration, terminalGuidanceThrustValue / mass);
+                    var acceleration = terminalGuidanceThrustValue / mass;
+                    if(acceleration > ControlInput.MaxAcceleration)
+                    {
+                        var scalingNeeded = ControlInput.MaxAcceleration / acceleration;
+                        state.MassFlow *= scalingNeeded;
+                        state.Thrust = terminalGuidanceThrustDirection * ControlInput.MaxAcceleration;
+                    } else
+                    {
+                        state.Thrust = terminalGuidanceThrustDirection * acceleration;
+                    }
                 }
                 else
                 {
@@ -185,7 +194,18 @@ namespace RocketOptimize.Simulation
                 double thrustValue = ControlInput.ComputeThrust(state.Time, 1.0, state.ExpendedMass, state.Atmosphere.Pressure, out state.MassFlow);
 
                 Vector3d thrustDirection = Math.Cos(angle) * _vertical + Math.Sin(angle) * _horizontal;
-                state.Thrust = thrustDirection * Math.Min(ControlInput.MaxAcceleration, thrustValue / mass);
+
+                var acceleration = thrustValue / mass;
+                if (acceleration > ControlInput.MaxAcceleration)
+                {
+                    var scalingNeeded = ControlInput.MaxAcceleration / acceleration;
+                    state.MassFlow *= scalingNeeded;
+                    state.Thrust = thrustDirection * ControlInput.MaxAcceleration;
+                }
+                else
+                {
+                    state.Thrust = thrustDirection * acceleration;
+                }
             }
 
 

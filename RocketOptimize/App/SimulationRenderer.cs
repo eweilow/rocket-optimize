@@ -125,7 +125,7 @@ namespace RocketOptimize.App
             Camera.Update();
         }
 
-        private void DrawCircle(double radius, float R, float G, float B, float lineWidth = 1f)
+        private void DrawCircle(double radius, float R, float G, float B, float lineWidth = 2f)
         {
             GL.LineWidth(lineWidth);
             GL.Color3(R, G, B);
@@ -155,7 +155,7 @@ namespace RocketOptimize.App
             if (last.Position.Length > Constants.EarthRadius + 1000)
             {
                 var positions = _simulation.LookAheadState.FuturePositions;
-                GL.LineWidth(2f);
+                GL.LineWidth(6f);
                 GL.Begin(PrimitiveType.LineStrip);
                 for (int i = 0; i < positions.Length; i++)
                 {
@@ -165,7 +165,7 @@ namespace RocketOptimize.App
                 GL.End();
             }
 
-            GL.LineWidth(1f);
+            GL.LineWidth(3f);
             GL.Begin(PrimitiveType.LineStrip);
             foreach (var state in _simulation.States)
             {
