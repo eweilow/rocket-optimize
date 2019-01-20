@@ -9,6 +9,8 @@
 \usepackage{changepage}  
 \usepackage{apacite}
 \usepackage{footmisc}
+\usepackage{mathtools}
+\usepackage{xfrac}
 
 \bibliographystyle{apacite}
 \setlength{\columnsep}{1cm}
@@ -42,33 +44,51 @@
 \end{titlepage}
 \newpage
 
-\section{Introduction}
-The goal of this project is to compare the propellant consumption for the launch of a multi-stage orbital class launch vehicle into low Earth orbit, from an equatorial and a polar launch site.
-To do this, the project formulates an approximate model of the conditions encountered for the launch vehicle during ascent as well as a simple control algorithm.
-To be able to draw conclusions from the results gained, the control algorithm must be optimized. 
-This will be done using a randomized optimization algorithm, optimizing the ascent to target an apoapsis $g_{ap}$ and a periapsis $g_{pe}$, with a maximum acceleration of $a_{max}$. 
+\section{Introduction} \label{sec:intro}
+The goal of this project is to compare the propellant consumption for the launch of a multi-stage orbital class launch vehicle into low Earth orbit, from an equatorial and a polar launch site, with a specific payload mass $m_{payload}$. This leads to a formulation of an approximate model of the conditions encountered for the launch vehicle during ascent. 
+To be able to compare the results, the launch will be done with a goal of reaching an orbit with an apoapsis $g_{ap}$ and a periapsis $g_{pe}$. 
+In order to be able to reach any conclusions, any influence from a bad trajectory on the propellant consumption must be minimized.
+This leads to the design of a simple ascent guidance algorithm, which will expose a collection of parameters that can be optimized using a 
+randomized optimization algorithm.
 
-The project is thus split into four major parts: the equations describing the state of the rocket, the physics model, the ascent guidance algorithm as well as the optimization of control parameters.
+The project is split into four major parts: the equations describing the rocket, the physics simulation, the ascent guidance algorithm as well as the optimization of control parameters.
 
 \section{Equations of the rocket}
-A rocket works on the principle of momentum conservation. Mass is ejected at a rate $\dot{m}$ (mass flow) through the engines at a velocity $v_{e} = I_{sp} / g_{_0}$, 
-producing a thrust $F = \dot{m} \cdot v_{e} = \dot{m} \cdot I_{sp} / g_{_0}$. If we can calculate these parameters at all times, we can simulate a rocket.
+A rocket works on the principle of momentum conservation. 
+Mass is ejected at a rate $\dot{m}$ (mass flow) through the engines at a velocity $v_{e} = I_{sp} / g_{_0}$, 
+producing a change in momentum (thrust) $\dot{p} = F = \dot{m} \cdot v_{e} = \dot{m} \cdot I_{sp} / g_{_0}$. 
+With the calculation of these variables, a rocket can be simulated.
 
-To complicate things further, we need to consider that the rocket has several stages.
-This can be solved by letting the state of the rocket be described with position, velocity and \textit{expended mass} ($m_e$):
-$$
-S = (\vec{r}, \vec{v}, m) = (x, y, z, v_x, v_y, v_z, m_e)
-$$
+The naive model is that a rocket consists of a propulsion system, some structure and propellant. 
+This is not the case for a multi-stage rocket,
+where stages are dropped after the propellant contained within them are exhausted. 
+The model must therefore consider that the rocket has several stages.
+
+This can be solved by letting the state of the rocket be described with 
+\textit{position} ($\vec{r}$), 
+\textit{velocity} ($\vec{v}$) and 
+\textit{expended mass} ($m_e$),
 where $m_e$ is the integral of exhaust mass flow (ejected mass) over time:
 $$
-m_e(t) = \int_0^t \dot{m}(S,t) dt
+m_e(t) = \int_0^t \dot{m}(\vec{r},\vec{v},m_e,t) dt, \quad \dot{m} \geq 0
 $$
 
-The reason for including expended mass in the model is that it lets us derive the currently active stage, 
-as well as the necessary variables (thrust, mass and mass flow) of the rocket as a function of used propellant. 
+Using expended mass in the model, rather than just keeping track of total mass, lets us \textit{relatively easily} derive the currently active stage, 
+and in extension the necessary variables (thrust, mass and mass flow) as a function of expended propellant. 
 
 \subsection{Input parameters} \label{sec:rocketparams}
-Consider each stage of the rocket as collection of parameters:
+Something that will be clear in section~\ref{sec:drag} is that we first need some basic aerodynamic parameters,
+which will be assumed constant:
+\begin{center}
+\begin{tabular}{ r  | l  }
+  Parameter & Description \\
+  \hline
+  $c_d$ & Drag coefficient of the rocket \\
+  $A$ & Frontal area of the rocket
+\end{tabular}
+\end{center}
+
+Let each stage be a set of parameters:
 \begin{center}
 \begin{tabular}{ r  | l  }
   Parameter & Description \\
@@ -81,7 +101,7 @@ Consider each stage of the rocket as collection of parameters:
   $I_{sp,vac,i}$ & Specific impulse in vacuum pressure
 \end{tabular}
 \end{center}
-such that each stage $i=0,1,2...$ can be written
+such that the parameters for each stage $s_0,s_1,s_2,...$ can be written
 $$
 s_i = (m_{prop,i}, m_{dry,i}, F_{sl,i}, F_{vac,i}, I_{sp,sl,i}, I_{sp,vac,i})
 $$
@@ -94,40 +114,32 @@ Furthermore, a rocket typically has an aerodynamic shell (fairing) that is deplo
     $h_{deployment,i}$ & Altitude of deployment
   \end{tabular}
 \end{center}
-such that each fairing $i=0,1,2...$ can be written
+such that each fairing $f_0,f_1,f_2...$ can be written
 $$
-f_i = (m_i, h_{deployment,i})
+f_i = (m_{fairing,i}, h_{deployment,i})
 $$
 Lastly, the payload of the rocket is modelled as a mass $m_{payload}$. 
-Something that will be clear in section~\ref{sec:drag} is that we also need some basic aerodynamic parameters:
-\begin{center}
-\begin{tabular}{ r  | l  }
-  Parameter & Description \\
-  \hline
-  $c_d$ & Drag coefficient \\
-  $A$ & Frontal area
-\end{tabular}
-\end{center}
-These parameters are assumed to be constant.
 
 
 \subsection{Derived parameters}
 To run simulations of defined by the parameters in the previous section, 
 we need to derive the current mass of the entire rocket. This is not as simple as subtracting $m_e$ from the initial mass, as we want to model staging.
-Instead consider parameters driven by the currently active stage $s_{active}$.
+Instead consider parameters driven by the currently active stage $s_{active}$, which will be defined below.
 
 \subsubsection{Mass}
 
-If the propellant of stages before $s_i$ is
+If the propellant of stages $s_0,s_1,...s_{i-1}$ before stage $s_i$ is
 $$
 m'_{prop,i} = \sum_{j=0}^{i-1} m_{prop,j}
 $$
-then the currently active stage fulfill the criteria
+then the currently active stage $s_{active}$ is the one, if staging is assumed instant, that matches the criteria
 $$
-m'_{prop,active} < m_e(t) < m'_{prop,active} + m_{prop,active}
+  \overbrace{m'_{prop,active}}^{\mathclap{\text{propellant mass of previous stages}}} < m_e(t)  \quad
+  \textbf{and} \quad
+  m_e(t) < \overbrace{m'_{prop,active} + m_{prop,active}}^{\mathclap{\text{propellant mass of stages after}}}
 $$
 
-As we are only considering a two stage launch vehicle, the active stage can be defined by
+As we are only considering a two stage launch vehicle, the active stage can be defined by the simpler form
 $$
 s_{active} = \begin{cases} 
   s_0 & : m_e < m_{prop,0} \\
@@ -141,12 +153,12 @@ m'_{stages,i} = \sum_{j=i+1} m_{prop,j} + m_{dry,j}
 $$
 This defines the current mass of stages, when $s_{i}$ is active, as
 $$
-m_{stagemass,i} = \left( m_e(t) - m'_{prop,i} \right) + m_{dry,i} + m'_{stages,i}
+m_{stagemass,i} = \overbrace{\left( m_e(t) - m'_{prop,i} \right)}^{\text{current propellant mass}} + m_{dry,i} + m'_{stages,i}
 $$
 
 If $h_{max}$ is the maximum altitude reached up until time $t$, then the mass of fairings currently on the rocket can be described by the sum
 $$
-m_{fairings}(h_{max}) = \sum_{i=0} m_{fairing,i} (1 - H(h_{max} - h_{deployment,i}))
+m_{fairings}(h_{max}) = \sum_{i=0} m_{fairing,i} \underbrace{H(h_{deployment,i} - h_{max})}_{\text{Inverted Heaviside function}}
 $$
 
 Thus, the total instantaneous mass for an active stage $s_i$ is
@@ -156,8 +168,8 @@ $$
 
 \subsubsection{Thrust}
 
-Since the thrust of a rocket propulsion system is linear in the pressure difference between the exhaust and surrounding pressure, 
-it is assumed in our model that the thrust $F$ changes linearly between $F_{sea}$ and $F_{vacuum}$ with pressure $p$~\cite{thrust}.
+Since the thrust of a rocket propulsion system is linear in the pressure difference between the exhaust and surrounding pressure~\cite{thrust}, 
+it is assumed in our model that the thrust $F$ changes linearly between $F_{sea}$ and $F_{vacuum}$ with pressure $p$.
 %
 % https://www.grc.nasa.gov/www/k-12/rocket/thrsteq.html
 %
@@ -200,7 +212,7 @@ m(m_e, h_{max}) = m_i(h_{max}), \quad
 F(m_e, p(h)) = F_i(p(h)), \quad 
 \dot{m}(m_e, p(h)) = \dot{m}_i(p(h)) \quad 
 $$
-where the active stage $s_i$ is derived from a given $m_e$.
+where the active stage $s_i$ is derived from the given $m_e$. These functions will be used later.
 
 \section{Physics model}
 
@@ -232,26 +244,30 @@ $$
 
 \subsection{Initial conditions}
 For ease of simulation, the influence of launching from the equator is modelled as an initial horizontal velocity $v_{surf}$.
-Since the radius of Earth is denoted as $R_0$, then the initial conditions in the Cartesian frame are:
+Since the radius of Earth is denoted as $R_0$, then the initial conditions in the cartesian coordinate system are:
 $$
-\vec{r}_0 = R_0 \cdot \hat{y}, \quad \vec{v}_0 = v_{surf} \cdot \hat{x}, \quad m_e = 0
+\vec{r}(0) = R_0 \cdot \hat{y}, \quad \vec{v}(0) = v_{surf} \cdot \hat{x} + 5 \, \sfrac{m}{s} \, \hat{y}, \quad m_e = 0
 $$
 
-Launch from the equator result in $v_{surf} \approx 460 m/s$ and launch from the poles result in $v_{surf} = 0 m/s$.
+Launch from the equator result in $v_{surf} \approx 460 m/s$ and launch from the poles result in $v_{surf} = 0 m/s$. 
+Adding a slight upward velocity was necessary to start the simulation.
 
 \subsection{Atmosphere} \label{sec:atmosphere}
-The atmosphere in the simulation is modelled according to the U.S Standard Atmosphere~\cite{atmosphere2014}. 
+The atmosphere in the simulation is modelled according to the U.S Standard Atmosphere~\cite{atmosphere2014}, for altitudes below 90 km. 
 In order to make the simulation more efficient, the model is linearly interpolated between points at altitudes spaced 1 km.
 The model produces the atmospheric density $\rho(h)$ and ambient pressure $P(h)$.
-Furthermore we assume that the atmosphere, independently of altitude, move at a velocity
+Above 90 km, the pressure and density is linearly interpolated from $P(90 \text{km}), \rho(90 \text{km})$ down to 0 at 100 km.
+
+Furthermore we assume that the atmosphere, independently of altitude, moves at a velocity
 $$
-\vec{v}_{atm} (\vec{r}) = v_{surf} \cdot \hat{t}
+\vec{v}_{atm} = v_{surf} \cdot \hat{t}
 $$
 The modelling of velocity in practice has little effect on the simulation, as the rocket will quickly lift itself to an altitude where pressure tends to zero,
 but it will simplify things at low altitudes.
 
+
 \subsection{Forces}
-In this model, it assumed that three forces are acting on the rocket: thrust $T$, aerodynamic drag $D$ and gravity $G$.
+In this model, it is assumed that three forces are acting on the rocket: thrust $T$, aerodynamic drag $D$ and gravity $G$.
 
 \subsubsection{Gravity - G}
 Gravity is modelled based on the Newtonian formulation, resulting in a force
@@ -262,16 +278,16 @@ where r is the distance to the center of Earth from the rocket, and $\mu = GM \a
 
 \subsubsection{Aerodynamic drag - D} \label{sec:drag}
 
-From the atmospheric model described in section~\ref{sec:atmosphere}, we can get the wind-relative velocity
+From the atmospheric model described in section~\ref{sec:atmosphere}, we can first get the wind-relative velocity
 $$
-\vec{v}_{atm,rel} (\vec{r}, \vec{v}) = \vec{v} - \vec{v}_{atm} (\vec{r})
+\vec{v}_{atm,rel} (\vec{v}) = \vec{v} - \vec{v}_{atm}
 $$
 
 Under the assumption that the the drag equation holds for the entirety of the ascent, then drag becomes
 $$
-\vec{D}(\vec{r}, \vec{v}, m_e, t) = - \frac{ m(m_e, h_{max}(t)) \cdot  c_d  \cdot A \cdot \rho(h(\vec{r})) }{2} {\left| \vec{v}_{atm,rel} (\vec{r}, \vec{v}) \right|}^2 \hat{v}
+\vec{D}(\vec{r}, \vec{v}, m_e, t) = - \frac{ m(m_e, h_{max}(t)) \cdot  c_d  \cdot A \cdot \rho(h(\vec{r})) }{2} {\left| \vec{v}_{atm,rel} (\vec{v}) \right|}^2 \, \hat{v}
 $$
-where $A$ and $c_d$ are parameters given in section~\ref{sec:rocketparams}.
+where $A$ and $c_d$ are parameters described in section~\ref{sec:rocketparams}.
 % coefficient of drag $C_d = 0.2$, 
 \subsubsection{Thrust - T}
 
@@ -315,8 +331,9 @@ The combination of gravity, aerodynamic drag, and (corrected) thrust give the eq
 \end{equation}
 Furthermore, the equation for mass is
 \begin{equation} \label{eq:diff2}
-\frac{dm}{dt} = \dot{m_c}
+\frac{d m_e}{dt} = \dot{m_c} \geq 0
 \end{equation}
+These are the equations that the simulation needs to integrate.
 
 
 \subsection{Calculation of apoapsis and periapsis}
@@ -358,7 +375,7 @@ These phases are characterized by parameters that control $\theta$ and $\eta$, w
 During this phase, the trajectory is entirely vertical: $\theta = 0$ and $\eta = 1$.
 
 \subsection{Kickpitch ($t_{vertical} < t < t_{kickpitch}$)}
-During this phase, the trajectory starts pitching towards the horizon slightly.
+During this phase, the trajectory starts pitching towards the horizon slightly. Throttle is still $\eta = 1$.
 The angle $\theta$ is linearly interpolated between 0 and the defining parameter $\theta_{kickpitch} = 4^{\circ}$ according to
 $$
 \theta(t) = \theta_{kickpitch} \frac{t - t_{vertical}}{t_{kickpitch} - t_{vertical}}
@@ -366,13 +383,13 @@ $$
 
 \subsection{Gravity turn ($\dot{m} t_{kickpitch} < m_e(t) < m_{prop,0}$)}
 During the time between the end of kickpitch and the time of staging (when the expended mass is equal to the propellant in the first stage),
-the angle $\theta$ is linearly interpolated between $\theta_{kickpitch}$ and the defining parameter $\theta_{staging}$ according to
+$\eta = 1$ and the angle $\theta$ is linearly interpolated between $\theta_{kickpitch}$ and the defining parameter $\theta_{staging}$ according to
 $$
 \theta(t) = \theta_{kickpitch} + \left( \theta_{staging} - \theta_{kickpitch} \right) \frac{m_e(t) - \dot{m} t_{kickpitch}}{m_{prop,0} - \dot{m} t_{kickpitch}}
 $$
 
 \subsection{Orbital insertion ($m_{prop,0} < m_e(t) < m_{prop,0} + m_{prop,1}$)}
-This phase lasts until terminal guidance is triggered. The angle $\theta$ is interpolated from $\theta_{staging}$ to 0 according to
+This phase lasts until terminal guidance is triggered. Throttle is $\eta = 1$. The angle $\theta$ is interpolated from $\theta_{staging}$ to 0 according to
 $$
 \theta(t) = \theta_{staging} \left( 1 - \frac{m_e(t) - m_{prop,0}}{m_{prop,1}} \right)
 $$
@@ -380,19 +397,18 @@ $$
 \subsection{Terminal guidance}
 Terminal guidance is necessary to achieve a circular orbit within this simulation and previously mentioned ascent guidance parameters.
 It consists of a PI-controller that attempts to cancel out any vertical velocity.
-It is triggered, and overrides orbital insertion, only once certain conditions are fulfilled:
+It is triggered, and overrides the orbital insertion phase, once certain conditions are fulfilled:
 $$
 \left( h > g_{ap} - 55  \right) \quad \textbf{or} \quad \left(  h > 100 \,\, \text{and} \, \left| \vec{v} \cdot \hat{r} \right| < 50 \right)
 $$
 
 Within terminal guidance, $\theta$ is controlled with the regulator 
 $$
-\theta = 5 \cdot e(t) + 5 \int_{t_{triggered}}^t e(t') dt'
+\theta = 5 \cdot e(t) + 5 \int_{t_{triggered}}^t e(t') dt',
+\quad
+e(t) = \vec{v}(t) \cdot \hat{r}(t)
 $$
-where $t_{triggered}$ is the time at which terminal guidance was triggered, and
-$$
-e(t) = \vec{v} \cdot \hat{r}
-$$
+where $t_{triggered}$ is the time at which terminal guidance was triggered.
 
 Furthermore, throttle is controlled by
 $$
@@ -406,18 +422,18 @@ $$
 \end{cases}
 $$
 
-If $\eta = 0$, the simulation ends in orbit.
+If $\eta = 0$, the simulation ends in an acceptable orbit.
 
 \section{Integration}
 The integration of equations~\eqref{eq:diff1} and~\eqref{eq:diff2} described in section~\ref{sec:eqns} is done using a 4th order Runge-Kutta integrator.
 This choice was made, because even though RK4 is not stable in terms of energy, it is simple to implement and produces low errors for the relatively short time spans 
 simulated during a rocket launch (in the order of 500 seconds).
-Relatively few large time steps are required to get a stable simulation, which is very useful when running an optimization algorithm, compared to other methods.
+Also, relatively few large time steps are required to get a stable simulation compared to other methods, which is very useful when running an optimization algorithm that requires many (several tens of thousands) simulations.
 
-The choice of time step for the optimization step is detailed in the next section, but the final simulation is run in scaled real-time: such that we do $N$ steps per frame $\Delta t_f = 1/60 s$, resulting
+The choice of time step for the optimization step is detailed in the next section, but the final simulation is run in scaled real-time to run an animation: such that we do $N$ steps per animation frame $\Delta t_f = \sfrac{1s}{60}$, resulting
 in a time step of 
 $$
-\Delta t = 1/n \Delta  t_f = 1/(60N) s
+\Delta t = \frac{\Delta  t_f}{N} = \frac{1}{60\,N} s
 $$ 
 The simulation is then run as an animation with speed-up $n$, resulting in $n \cdot N$ time steps taken per frame. 
 Going much higher, up to 10x more steps per frame, would be computationally possible but introduces
@@ -425,7 +441,7 @@ numerical inaccuracies. Being able to run the simulation in real-time means that
 
 \section{Optimization of parameters} \label{sec:optimize}
 To optimize parameters, an error function has to be established.
-From introduction, we know that the goal is to reach a specific periapsis ($g_{pe}$) and apoapsis ($g_{ap}$). 
+From section~\ref{sec:intro}, we know that the goal is to reach a specific periapsis ($g_{pe}$) and apoapsis ($g_{ap}$). 
 Let the periapsis from each simulation be $r_{pe}$, and the periapsis be $r_{ap}$.
 As the terminal guidance algorithm works by eliminating vertical velocity, after reaching maximum altitude, we also want to make sure to use the maximum altitude reached ($h_{max}$).
 To make sure the terminal guidance algorithm works well, we also want to use the altitude at which orbit is reached ($h$).
@@ -457,13 +473,13 @@ are randomly perturbated from the currently best choice of parameters using spec
 \end{center}
 
 For every perturbation iteration $i$, a simulation is run at a specific timestep $\Delta t$ and iteration-specific scaling 
-$ scale = s (5 - (i\,\text{mod}\,5)) / 5$.\footnote{This led to faster convergence, since some iterations are more precise} If the result is scored lower than the currently best score, the currently best choice of parameters are set to
+$ scale = s_{par} (5 - (i\,\text{mod}\,5)) / 5$.\footnote{This led to faster convergence, since some iterations are more precise} If the result is scored lower than the currently best score, the currently best choice of parameters are set to
 the perturbated ones.
 If the result is not scored lower, the perturbation is discarded.
 This is done for different sets of time steps and scaling factors, progressively going to a finer time step, until either a max count of attempts have been reached or a minimum score is achieved according to the following sequence:
 \begin{center}
   \begin{tabular}{ r | l | l | l  }
-    Maximum score & Maximum runs & $\Delta t$ & Random scale ($s$) \\
+    Min score & Max attempts & $\Delta t$ & Parameter specific scale ($s_{par}$) \\
     \hline
     10 & 10000 & 1 & 30 \\
     5 & 10000 & 1 & 15 \\
@@ -478,7 +494,7 @@ The parameters that is considered best at the end of optimization is then used i
 
 \section{Results}
 \subsection{Used parameters}
-To get a sense for what the parameters should be, the values for Falcon 9 Block 5 was used as a starting point
+To get a sense for what the parameters should be, the values for SpaceX's Falcon 9 Block 5 rocket was used as a starting point
 \footnote{These values are easily found on Wikipedia}. The values that had to be corrected was thrust on the second stage, which was increased by 20\%, in order for optimization to converge.
 
 \begin{center}
@@ -503,6 +519,9 @@ To get a sense for what the parameters should be, the values for Falcon 9 Block 
   $h_{deployment,0}$ & km & 100 \\
   \hline
   $m_{payload}$ & kg & 10000 \\
+  \hline
+  $c_d$ & 1 & 0.2 \\
+  $A$ & $m^2$ & 19.63 \\
   \hline
   $R_0$ & km & 6374 \\
   $\mu$ & $m^3 s^{−2}$ & $3.986004418\cdot10^{14}$ \\
@@ -556,8 +575,8 @@ It's clear that the algorithm works astonishingly well, with insertions just a f
     460 m/s & 275 km & 512208 kg & 6192 kg
   \end{tabular}
 \end{center}
-The propellant consumption was highest for the highest orbit goal, a reasonable expectation, but the difference between equatorial and polar launch was the lowest for the 220 km orbit goal.
-This is further shown in the following table, comparing propellant usage for equatorial launch relative to polar launch:
+The propellant consumption was highest for the highest orbit goal, a reasonable expectation, but the difference is the greatest for the lowest orbit goal simulated.
+This is shown in the following table, comparing propellant usage for equatorial launch relative to polar launch:
 \begin{center}
   \begin{tabular}{ r | l  l  }
      &   Propellant   \\
